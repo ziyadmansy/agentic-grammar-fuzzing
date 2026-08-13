@@ -124,6 +124,13 @@ source .venv/bin/activate
 pip install hypothesis pytest
 ```
 
+On macOS, also install Homebrew's LLVM so sanitizer builds don't hit Apple's
+ASan startup deadlock (see [Known limitations](#known-limitations)):
+
+```sh
+brew install llvm
+```
+
 An `openai`-compatible client is only required if you use
 [`OpenAIProposer`](src/agentic_fuzzing/llm.py) to drive the refinement loop
 live; the loop itself accepts any `Callable[[str], str]` proposer, so tests
@@ -143,7 +150,10 @@ printf '{]' | ./build/cjson_harness      # status=rejected offset=<n>
 `scripts/build_target.sh` compiles `vendor/cjson/cJSON.c` and
 `harness/cjson_harness.c` with `-fsanitize=address,undefined
 -fno-omit-frame-pointer` by default. Set `SANITIZERS=none` to disable
-sanitizers, or `SANITIZERS="..."` to override the flags entirely.
+sanitizers, or `SANITIZERS="..."` to override the flags entirely. On macOS the
+script automatically builds with Homebrew's `clang` (`/opt/homebrew/opt/llvm`)
+instead of Apple's, since Apple's ASan runtime deadlocks on this platform (see
+[Known limitations](#known-limitations)); set `CC` explicitly to override.
 
 ## Baseline campaign
 
@@ -229,7 +239,7 @@ previously-uncrashed shapes.
 ## Testing
 
 ```sh
-SANITIZERS=none ./scripts/build_target.sh
+./scripts/build_target.sh
 PYTHONPATH=src .venv/bin/pytest -q
 ```
 
@@ -256,13 +266,19 @@ already surfaces.
 
 ## Known limitations
 
-- On this Apple Silicon macOS host, the ASan/UBSan runtime currently hangs
-  during process startup even for a trivially clean program (verified with
-  the minimal repro in [test_asan.c](test_asan.c)). The harness and campaign
-  pipeline are therefore validated locally with `SANITIZERS=none`; sanitizer
-  campaigns are expected to run cleanly on Linux or a compatible Xcode
-  toolchain and should be re-run there before drawing conclusions about
-  "no crashes found."
+- **Resolved:** Apple's clang 17/ASan (Xcode 17, macOS 26) deadlocks on
+  startup on this host — confirmed with a native stack sample
+  ([test_asan.c](test_asan.c) as the minimal repro) showing
+  `AsanInitFromRtl()` spinning forever on `StaticSpinMutex::LockSlow()`
+  because shadow-memory setup (`dyld_shared_cache_iterate_text_swift`)
+  triggers a re-entrant `malloc` while the init lock is already held — a bug
+  in Apple's compiler-rt, not in this project. The fix in
+  [scripts/build_target.sh](scripts/build_target.sh) builds with Homebrew's
+  `clang` (`brew install llvm`) instead, whose independently-built ASan
+  runtime does not hit this deadlock; the full harness, baseline campaign,
+  and test suite now run cleanly with real `-fsanitize=address,undefined`
+  enabled on this Apple Silicon host. Sanitizer campaigns also run cleanly on
+  Linux/Xcode toolchains without this workaround.
 - The `OpenAIProposer` in [src/agentic_fuzzing/llm.py](src/agentic_fuzzing/llm.py)
   is a thin, swappable adapter; the refinement loop itself has no dependency
   on a specific LLM provider and is fully exercised in tests with a

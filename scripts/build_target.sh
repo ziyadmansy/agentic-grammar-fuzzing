@@ -4,7 +4,15 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 mkdir -p "$root/build"
 
-cc=${CC:-clang}
+if [ -n "${CC:-}" ]; then
+    cc=$CC
+elif [ "$(uname -s)" = "Darwin" ] && [ -x /opt/homebrew/opt/llvm/bin/clang ]; then
+    # Apple's clang/ASan (Xcode 17, macOS 26) deadlocks in AsanInitFromRtl()
+    # during shadow-memory setup; Homebrew's clang does not.
+    cc=/opt/homebrew/opt/llvm/bin/clang
+else
+    cc=clang
+fi
 if [ "${SANITIZERS:-default}" = "none" ]; then
     sanitizers=
 else
