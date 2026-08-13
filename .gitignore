@@ -1,6 +1,5 @@
 .venv/
 build/
-artifacts/
 __pycache__/
 *.pyc
 .DS_Store

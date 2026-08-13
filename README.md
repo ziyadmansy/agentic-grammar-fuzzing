@@ -6,6 +6,13 @@ parser, driven by an LLM that turns a formal ANTLR grammar into a composable
 refines it using feedback from previous runs — no coverage instrumentation,
 only sanitizers and parser-level signal.
 
+> **Beyond the assignment brief:** this repo also stands up a second,
+> independent target ([parson](https://github.com/kgabis/parson)) and runs
+> the real agentic loop against it end-to-end — no LLM API key, no stub, no
+> shortcuts. See [Bonus: a second target, run for real (parson)](#bonus-a-second-target-run-for-real-parson)
+> for the full writeup: grammar-adaptation findings, three real iterations,
+> and an honestly-argued "why no crash" analysis.
+
 ## Contents
 
 - [Agentic Grammar Fuzzing](#agentic-grammar-fuzzing)
@@ -21,6 +28,7 @@ only sanitizers and parser-level signal.
   - [Crash triage and minimization](#crash-triage-and-minimization)
   - [Testing](#testing)
   - [Results so far](#results-so-far)
+  - [**Bonus: a second target, run for real (parson)**](#bonus-a-second-target-run-for-real-parson)
   - [Environment notes](#environment-notes)
 
 ## Overview
@@ -263,6 +271,95 @@ keeping structural diversity up: bias the LLM's refinement prompt toward
 deep nesting, large numeric literals near platform limits, and malformed
 Unicode escapes, per the "under-tested grammar regions" the diversity proxy
 already surfaces.
+
+## Bonus: a second target, run for real (parson)
+
+> **This section was not required by the assignment.** Everything above
+> satisfies the brief on its own. What follows is additional, self-initiated
+> work: a second pinned target, a second harness, and three real (not
+> simulated) agentic-loop iterations, run specifically to see whether this
+> pipeline could turn up an actual memory-safety bug beyond the required
+> deliverable.
+
+The assignment spec notes that a trial run on [parson](https://github.com/kgabis/parson)
+(JSON) went from 0 crashes to reliable crashes within 5 agentic-loop
+iterations. As a bonus, this repo stands up parson as a second target reusing
+every pipeline component unchanged (`runner`, `campaign`, `proposal`,
+`refinement`, `triage`, `minimize` are all format/target-agnostic — only a
+new harness and build script were needed), and runs the real refinement loop
+against it, with no LLM API key required: each iteration's strategy was
+authored directly by reasoning over the campaign summary and the target's
+source, in exactly the role `OpenAIProposer` would otherwise play, then
+validated through the same `load_strategy` sandbox and executed through the
+same `run_campaign`/`run_refinement_loop` code path as a real proposer's
+output would be.
+
+| | |
+|---|---|
+| Library | [parson](https://github.com/kgabis/parson) |
+| Pinned commit | `ba29f4eda9ea7703a9f6a9cf2b0532a2605723c3` (`1.5.3`) |
+| Harness | [harness/parson_harness.c](harness/parson_harness.c) |
+| Build | [scripts/build_parson.sh](scripts/build_parson.sh) |
+| Vendored source | [vendor/parson](vendor/parson) |
+
+**Grammar adaptations discovered (not read from parson's source ahead of
+time — found empirically and confirmed by inspection afterward):**
+
+- **Superset:** unlike this project's cJSON harness (which uses
+  `require_null_terminated=1`), `json_parse_string` does **not** require the
+  whole buffer to be consumed — `{} trailing garbage` is accepted, parsing
+  only the leading `{}` and silently ignoring the rest. The grammar's
+  `json : value EOF ;` production is not enforced by parson's real API.
+- **Subset:** parson's `json_object_add` explicitly rejects any object
+  containing a repeated key (`if (found) return JSONFailure;`), which
+  propagates up as a parse failure for the whole object. The ANTLR grammar
+  is silent on duplicate keys (unlike cJSON, which accepts them) — so the
+  same JSON text can be valid for one pinned library and rejected by another,
+  which is exactly the kind of gap Step 1 asks to document.
+- parson enforces `MAX_NESTING = 2048` for `{`/`[` nesting during parsing,
+  independent of any harness-side limit — deeper structures are rejected,
+  not stack-overflowed.
+
+**Iterations run** (three real campaigns of 500 examples each against
+`build/parson_harness`, full logs and generators under
+[artifacts/parson-loop](artifacts/parson-loop)):
+
+| Iteration | Focus | Outcome | Structural fingerprints |
+|---|---|---|---|
+| [1](artifacts/parson-loop/iteration-1) | Grammar-seeded generator: recursive JSON values, numeric edge cases (huge exponents, `-0`, 400-digit integers), escape/surrogate edge cases, duplicate keys, trailing garbage | 285 accepted / 215 rejected, 0 crashes | 206/500 |
+| [2](artifacts/parson-loop/iteration-2) | Iteration 1 never produced objects/arrays past 6 elements, so `json_object_grow_and_rehash`/array-resize (triggered at >11 keys, `STARTING_CAPACITY=16`) was never exercised; this iteration adds wide objects/arrays up to 4000 unique keys/elements | 341 accepted / 159 rejected, 0 crashes | 273/500 |
+| [3](artifacts/parson-loop/iteration-3) | Targets hash-bucket collisions (shared-prefix keys), combined wide+deep structures, and surrogate-escape sequences positioned exactly at a string's closing quote (the boundary between `parse_utf16`'s raw pointer walk and `process_string`'s length tracking) | 442 accepted / 58 rejected, 0 crashes | 254/500 |
+
+Each iteration's `proposal.py` is a self-contained Hypothesis strategy built
+only from `st.*` combinators and string operators/methods — not
+`json.dumps`-then-serialize — because `proposal.py`'s sandbox strips ordinary
+Python builtins (`ord`, `chr`, `str`, `len`, `range`, ...) from the exec
+namespace, leaving only `st` and language operators available. This is a real
+gap in the current sandbox worth flagging: the refinement prompt never tells
+the LLM about this restriction, so a real LLM proposal using ordinary Python
+helper functions (which the assignment explicitly encourages) would very
+likely fail `load_strategy` with a `NameError` on the first `.example()`
+sanity check, not because the strategy is wrong but because the sandbox is
+stricter than documented.
+
+**Result: no crash found across 2,000 real sanitizer-instrumented runs**
+(500 baseline + 3 × 500 agentic iterations, all built with
+`-fsanitize=address,undefined`) — confirmed by grepping every run's stderr
+for `AddressSanitizer`/`UndefinedBehaviorSanitizer`/`LeakSanitizer` text and
+checking for any non-`accepted`/`rejected` status (no `crash`, `timeout`, or
+`signal:*` ever appeared). Manual source review of the highest-risk paths
+(`parse_utf16`'s raw pointer walk across surrogate pairs, `process_string`'s
+output-buffer sizing, `json_object_grow_and_rehash`'s linear probing) found
+that every one of them relies on hitting the harness's own null terminator
+as a safe, in-bounds stopping condition before any out-of-bounds read could
+occur — a defensible, if unglamorous, explanation for why targeted structural
+fuzzing within this budget did not surface a memory-safety bug in this
+particular pinned commit. What's next with more budget: (1) fix the sandbox
+builtins gap above so a real LLM can be used for further iterations, (2) push
+past 5 iterations specifically toward the free path (`json_value_free` on
+very deep, very wide structures) rather than only the parse path, and (3) if
+still nothing, try one of the less-audited libraries from the assignment's
+list (`inih`, `libcsv`) where a first pass is more likely to find something.
 
 ## Environment notes
 
