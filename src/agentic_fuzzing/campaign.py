@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .runner import RunResult, run_input
+from .triage import sanitizer_signature, signature_id
 
 
 def run_campaign(
@@ -29,12 +30,35 @@ def run_campaign(
 
 
 def _observation(index: int, data: bytes, result: RunResult) -> dict[str, object]:
+    stdout = result.stdout.decode("utf-8", errors="replace")
+    stderr = result.stderr.decode("utf-8", errors="replace")
     return {
         "index": index,
         "input_hex": data.hex(),
         "input_length": len(data),
         "status": result.status,
         "returncode": result.returncode,
-        "stdout": result.stdout.decode("utf-8", errors="replace"),
-        "stderr": result.stderr.decode("utf-8", errors="replace"),
+        "stdout": stdout,
+        "stderr": stderr,
+        "rejection_signature": stdout if result.status == "rejected" else None,
+        "sanitizer_signature": sanitizer_signature(result.stderr) if result.status == "crash" else None,
+        "crash_id": signature_id(result.stderr) if result.status == "crash" else None,
+        "structure": _structure(data),
     }
+
+
+def _structure(data: bytes) -> str:
+    """Return a stable, parser-independent shape fingerprint for diversity metrics."""
+    categories = []
+    for byte in data:
+        if byte in b"{}[]:,":
+            categories.append(chr(byte))
+        elif byte in b" \t\r\n":
+            categories.append("_")
+        elif 48 <= byte <= 57:
+            categories.append("#")
+        elif byte == 34:
+            categories.append('"')
+        else:
+            categories.append("x")
+    return "".join(categories[:256])
