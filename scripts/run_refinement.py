@@ -2,6 +2,7 @@
 """Run the real agentic refinement loop against the pinned cJSON harness."""
 
 import argparse
+import json
 import os
 from pathlib import Path
 
@@ -40,6 +41,9 @@ def main() -> None:
     )
     for index, summary in enumerate(summaries, start=1):
         print(f"iteration-{index}: {summary.as_dict()}")
+        # mirror artifacts/parson-loop's layout, which persists summary.json per iteration
+        summary_path = args.artifact_dir / f"iteration-{index}" / "summary.json"
+        summary_path.write_text(json.dumps(summary.as_dict(), indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

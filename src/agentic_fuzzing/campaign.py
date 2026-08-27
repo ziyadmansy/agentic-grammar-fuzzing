@@ -7,6 +7,7 @@ from typing import Iterable
 
 from .runner import RunResult, run_input
 from .triage import sanitizer_signature, signature_id
+from .proposal import GenerationError
 
 
 def run_campaign(
@@ -23,10 +24,33 @@ def run_campaign(
         for index, data in enumerate(inputs):
             if index >= max_examples:
                 break
+            if isinstance(data, GenerationError):
+                # a single bad Hypothesis draw (e.g. an unencodable surrogate) must
+                # not abort the rest of the campaign -- log it and keep going.
+                counts["encoding_error"] += 1
+                output.write(json.dumps(_generation_error_observation(index, data)) + "\n")
+                continue
             result = run_input(executable, data, timeout_seconds)
             counts[result.status] += 1
             output.write(json.dumps(_observation(index, data, result)) + "\n")
     return counts
+
+
+def _generation_error_observation(index: int, error: GenerationError) -> dict[str, object]:
+    return {
+        "index": index,
+        "input_hex": "",
+        "input_length": 0,
+        "status": "encoding_error",
+        "returncode": None,
+        "stdout": "",
+        "stderr": "",
+        "rejection_signature": None,
+        "sanitizer_signature": None,
+        "crash_id": None,
+        "structure": "",
+        "generation_error": error.error,
+    }
 
 
 def _observation(index: int, data: bytes, result: RunResult) -> dict[str, object]:
