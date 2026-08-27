@@ -10,7 +10,7 @@ only sanitizers and parser-level signal.
 > independent target ([parson](https://github.com/kgabis/parson)) and runs
 > the real agentic loop against it end-to-end — no LLM API key, no stub, no
 > shortcuts. See [Bonus: a second target, run for real (parson)](#bonus-a-second-target-run-for-real-parson)
-> for the full writeup: grammar-adaptation findings, three real iterations,
+> for the full writeup: grammar-adaptation findings, five real iterations,
 > and an honestly-argued "why no crash" analysis.
 
 ## Contents
@@ -202,6 +202,23 @@ per-run bounds). Each iteration:
    results for every iteration under `artifact_dir/iteration-N/`.
 5. Feeds the resulting summary into the next iteration's prompt.
 
+[`scripts/run_refinement.py`](scripts/run_refinement.py) wires this up against
+the pinned cJSON harness with a real [`OpenAIProposer`](src/agentic_fuzzing/llm.py):
+
+```sh
+export OPENAI_API_KEY=sk-...
+PYTHONPATH=src .venv/bin/python scripts/run_refinement.py
+PYTHONPATH=src .venv/bin/python scripts/make_loop_report.py artifacts/cjson-loop
+```
+
+It persists five iterations of at most 500 examples each under
+`artifacts/cjson-loop/iteration-N/` (`prompt.txt`, `proposal.py`,
+`results.jsonl`), exactly mirroring the [parson bonus run](#bonus-a-second-target-run-for-real-parson)'s
+`artifacts/parson-loop` layout so the two targets' iteration tables are
+directly comparable via the same [`scripts/make_loop_report.py`](scripts/make_loop_report.py).
+Running it requires an `OPENAI_API_KEY` with API access; none is bundled with
+this repo.
+
 **Proxy signal.** With no coverage instrumentation, refinement is steered by
 three observable, parser-level proxies instead:
 
@@ -320,7 +337,7 @@ time — found empirically and confirmed by inspection afterward):**
   independent of any harness-side limit — deeper structures are rejected,
   not stack-overflowed.
 
-**Iterations run** (three real campaigns of 500 examples each against
+**Iterations run** (five real campaigns of 500 examples each against
 `build/parson_harness`, full logs and generators under
 [artifacts/parson-loop](artifacts/parson-loop)):
 
@@ -329,6 +346,8 @@ time — found empirically and confirmed by inspection afterward):**
 | [1](artifacts/parson-loop/iteration-1) | Grammar-seeded generator: recursive JSON values, numeric edge cases (huge exponents, `-0`, 400-digit integers), escape/surrogate edge cases, duplicate keys, trailing garbage | 285 accepted / 215 rejected, 0 crashes | 206/500 |
 | [2](artifacts/parson-loop/iteration-2) | Iteration 1 never produced objects/arrays past 6 elements, so `json_object_grow_and_rehash`/array-resize (triggered at >11 keys, `STARTING_CAPACITY=16`) was never exercised; this iteration adds wide objects/arrays up to 4000 unique keys/elements | 341 accepted / 159 rejected, 0 crashes | 273/500 |
 | [3](artifacts/parson-loop/iteration-3) | Targets hash-bucket collisions (shared-prefix keys), combined wide+deep structures, and surrogate-escape sequences positioned exactly at a string's closing quote (the boundary between `parse_utf16`'s raw pointer walk and `process_string`'s length tracking) | 442 accepted / 58 rejected, 0 crashes | 254/500 |
+| [4](artifacts/parson-loop/iteration-4) | Iterations 1-3 only ever freed fully-valid documents via the harness's single top-level `json_value_free`; this iteration targets parson's *internal* error-cleanup free path instead — deep chains/wide, multiply-rehashed objects that are valid until the very last token (a missing final bracket, or a duplicate key appended after many unique ones), forcing `parse_object_value`/`parse_array_value` to free the whole built subtree from inside their own failure branches | 85 accepted / 415 rejected (deliberately low — most inputs are designed to fail at the very end), 0 crashes | 214/500 |
+| [5](artifacts/parson-loop/iteration-5) | Combines iteration 4's two free-path shapes (deep chain **and** wide rehashed object failing together in one unwind) and adds a sibling-cascade case — an array of several already-built, structurally diverse children (deep/wide/long-string) followed by one duplicate-keyed object, so the whole array frees all its live siblings in one recursive call — plus duplicate keys planted at a randomly chosen array/object depth | 139 accepted / 361 rejected, 0 crashes | 302/500 |
 
 Each iteration's `proposal.py` is a self-contained Hypothesis strategy built
 only from `st.*` combinators and string operators/methods — not
@@ -342,24 +361,35 @@ likely fail `load_strategy` with a `NameError` on the first `.example()`
 sanity check, not because the strategy is wrong but because the sandbox is
 stricter than documented.
 
-**Result: no crash found across 2,000 real sanitizer-instrumented runs**
-(500 baseline + 3 × 500 agentic iterations, all built with
+**Result: no crash found across 3,000 real sanitizer-instrumented runs**
+(500 baseline + 5 × 500 agentic iterations, all built with
 `-fsanitize=address,undefined`) — confirmed by grepping every run's stderr
 for `AddressSanitizer`/`UndefinedBehaviorSanitizer`/`LeakSanitizer` text and
 checking for any non-`accepted`/`rejected` status (no `crash`, `timeout`, or
-`signal:*` ever appeared). Manual source review of the highest-risk paths
-(`parse_utf16`'s raw pointer walk across surrogate pairs, `process_string`'s
-output-buffer sizing, `json_object_grow_and_rehash`'s linear probing) found
-that every one of them relies on hitting the harness's own null terminator
-as a safe, in-bounds stopping condition before any out-of-bounds read could
-occur — a defensible, if unglamorous, explanation for why targeted structural
-fuzzing within this budget did not surface a memory-safety bug in this
-particular pinned commit. What's next with more budget: (1) fix the sandbox
-builtins gap above so a real LLM can be used for further iterations, (2) push
-past 5 iterations specifically toward the free path (`json_value_free` on
-very deep, very wide structures) rather than only the parse path, and (3) if
-still nothing, try one of the less-audited libraries from the assignment's
-list (`inih`, `libcsv`) where a first pass is more likely to find something.
+`signal:*` ever appeared, including across iterations 4-5's deliberate stress
+of the internal error-cleanup free path). Manual source review of the
+highest-risk paths (`parse_utf16`'s raw pointer walk across surrogate pairs,
+`process_string`'s output-buffer sizing, `json_object_grow_and_rehash`'s
+linear probing, and — informed by iterations 4-5 — `json_object_add`'s
+duplicate-key failure branch and `parse_object_value`/`parse_array_value`'s
+missing-bracket failure branch) found that every one of them relies on
+hitting the harness's own null terminator as a safe, in-bounds stopping
+condition, and that the internal cleanup calls to `json_value_free` are
+consistent with the harness's own top-level call (the object's `count` is
+never incremented before a duplicate is detected, so `json_object_deinit`
+never iterates past the last successfully-added slot) — a defensible, if
+unglamorous, explanation for why targeted structural fuzzing within this
+budget, including five full agentic iterations split across both the parse
+and free paths, did not surface a memory-safety bug in this particular
+pinned commit. Per the assignment's guidance not to fabricate a crash or push
+past 5 iterations without asking first, this bonus run stops here. What's
+next with more budget: (1) fix the sandbox builtins gap above so a real LLM
+can be used for further iterations, (2) drive `json_value_free` through the
+public mutation API (`json_object_remove`/`json_array_remove`/`_replace_*`)
+rather than only the parse-then-free path the black-box harness can reach,
+and (3) if still nothing, try one of the less-audited libraries from the
+assignment's list (`inih`, `libcsv`) where a first pass is more likely to
+find something.
 
 ## Environment notes
 
