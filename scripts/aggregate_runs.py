@@ -54,7 +54,7 @@ def find_run_dirs(root: Path) -> list[Path]:
     return []
 
 
-def _iteration_dirs(run_dir: Path) -> list[Path]:
+def iteration_dirs(run_dir: Path) -> list[Path]:
     return sorted(
         (path for path in run_dir.glob("iteration-*") if path.is_dir()),
         key=lambda path: int(path.name.split("-")[1]),
@@ -76,13 +76,13 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
     manifest, problems = _read_manifest(run_dir)
     totals = dict.fromkeys(("accepted", "rejected", "encoding_errors", "crashes"), 0)
     totals.update(structural_fingerprints=0, rejection_signatures=0, executed=0)
-    iteration_dirs = _iteration_dirs(run_dir)
-    if not iteration_dirs:
+    iterations = iteration_dirs(run_dir)
+    if not iterations:
         problems.append("no iteration directories")
     with_data = 0
     rejected_iterations = 0
 
-    for iteration_dir in iteration_dirs:
+    for iteration_dir in iterations:
         summary_path = iteration_dir / "summary.json"
         if not summary_path.exists():
             problems.append(f"{iteration_dir.name}/summary.json missing")
@@ -122,7 +122,7 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
         "seed": manifest.get("seed"),
         "model": manifest.get("model"),
         "timestamp": manifest.get("timestamp"),
-        "iterations": len(iteration_dirs),
+        "iterations": len(iterations),
         "iterations_with_data": with_data,
         "iterations_rejected": rejected_iterations,
         **totals,
