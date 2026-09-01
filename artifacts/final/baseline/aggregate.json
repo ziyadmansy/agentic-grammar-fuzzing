@@ -1,0 +1,149 @@
+{
+  "incomplete_runs": [],
+  "per_run": [
+    {
+      "acceptance_percentage": 58.0,
+      "accepted": 290,
+      "crashes": 0,
+      "encoding_errors": 0,
+      "executed": 500,
+      "iterations": 1,
+      "iterations_rejected": 0,
+      "iterations_with_data": 1,
+      "model": null,
+      "problems": [],
+      "rejected": 210,
+      "rejection_signatures": 86,
+      "run": "run-01-seed-0000",
+      "seed": 0,
+      "structural_fingerprints": 263,
+      "timestamp": "2026-09-01T09:42:34.994213+00:00"
+    },
+    {
+      "acceptance_percentage": 55.8,
+      "accepted": 279,
+      "crashes": 0,
+      "encoding_errors": 0,
+      "executed": 500,
+      "iterations": 1,
+      "iterations_rejected": 0,
+      "iterations_with_data": 1,
+      "model": null,
+      "problems": [],
+      "rejected": 221,
+      "rejection_signatures": 102,
+      "run": "run-02-seed-0001",
+      "seed": 1,
+      "structural_fingerprints": 292,
+      "timestamp": "2026-09-01T09:43:07.319112+00:00"
+    },
+    {
+      "acceptance_percentage": 58.6,
+      "accepted": 293,
+      "crashes": 0,
+      "encoding_errors": 0,
+      "executed": 500,
+      "iterations": 1,
+      "iterations_rejected": 0,
+      "iterations_with_data": 1,
+      "model": null,
+      "problems": [],
+      "rejected": 207,
+      "rejection_signatures": 90,
+      "run": "run-03-seed-0002",
+      "seed": 2,
+      "structural_fingerprints": 287,
+      "timestamp": "2026-09-01T09:43:42.024209+00:00"
+    },
+    {
+      "acceptance_percentage": 57.0,
+      "accepted": 285,
+      "crashes": 0,
+      "encoding_errors": 0,
+      "executed": 500,
+      "iterations": 1,
+      "iterations_rejected": 0,
+      "iterations_with_data": 1,
+      "model": null,
+      "problems": [],
+      "rejected": 215,
+      "rejection_signatures": 92,
+      "run": "run-04-seed-0003",
+      "seed": 3,
+      "structural_fingerprints": 267,
+      "timestamp": "2026-09-01T09:44:17.466042+00:00"
+    },
+    {
+      "acceptance_percentage": 58.8,
+      "accepted": 294,
+      "crashes": 0,
+      "encoding_errors": 0,
+      "executed": 500,
+      "iterations": 1,
+      "iterations_rejected": 0,
+      "iterations_with_data": 1,
+      "model": null,
+      "problems": [],
+      "rejected": 206,
+      "rejection_signatures": 92,
+      "run": "run-05-seed-0004",
+      "seed": 4,
+      "structural_fingerprints": 271,
+      "timestamp": "2026-09-01T09:44:52.552528+00:00"
+    }
+  ],
+  "runs_found": 5,
+  "runs_with_data": 5,
+  "source": "artifacts/final/baseline",
+  "statistics": {
+    "acceptance_percentage": {
+      "max": 58.8,
+      "mean": 57.64,
+      "min": 55.8,
+      "runs": 5,
+      "stdev": 1.244
+    },
+    "accepted": {
+      "max": 294.0,
+      "mean": 288.2,
+      "min": 279.0,
+      "runs": 5,
+      "stdev": 6.221
+    },
+    "crashes": {
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "runs": 5,
+      "stdev": 0.0
+    },
+    "encoding_errors": {
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "runs": 5,
+      "stdev": 0.0
+    },
+    "rejected": {
+      "max": 221.0,
+      "mean": 211.8,
+      "min": 206.0,
+      "runs": 5,
+      "stdev": 6.221
+    },
+    "rejection_signatures": {
+      "max": 102.0,
+      "mean": 92.4,
+      "min": 86.0,
+      "runs": 5,
+      "stdev": 5.899
+    },
+    "structural_fingerprints": {
+      "max": 292.0,
+      "mean": 276.0,
+      "min": 263.0,
+      "runs": 5,
+      "stdev": 12.767
+    }
+  }
+}

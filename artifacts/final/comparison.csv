@@ -1,0 +1,9 @@
+metric,baseline_mean,refined_mean,absolute_difference,percentage_difference,baseline_runs,refined_runs
+executed,500.0,1700.0,1200.0,240.0,5,5
+accepted,288.2,1639.0,1350.8,468.7022900763359,5,5
+rejected,211.8,37.6,-174.20000000000002,-82.24740321057601,5,5
+encoding_errors,0.0,23.4,23.4,,5,5
+crashes,0.0,0.0,0.0,,5,5
+structural_fingerprints,276.0,616.2,340.20000000000005,123.26086956521742,5,5
+rejection_signatures,92.4,29.6,-62.800000000000004,-67.96536796536796,5,5
+acceptance_percentage,57.64,96.774,39.134,67.89382373351839,5,5

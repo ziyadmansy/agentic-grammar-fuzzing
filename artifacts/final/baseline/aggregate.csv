@@ -1,0 +1,6 @@
+run,seed,model,timestamp,iterations,iterations_with_data,iterations_rejected,executed,accepted,rejected,encoding_errors,crashes,structural_fingerprints,rejection_signatures,acceptance_percentage,problems
+run-01-seed-0000,0,,2026-09-01T09:42:34.994213+00:00,1,1,0,500,290,210,0,0,263,86,58.0,
+run-02-seed-0001,1,,2026-09-01T09:43:07.319112+00:00,1,1,0,500,279,221,0,0,292,102,55.8,
+run-03-seed-0002,2,,2026-09-01T09:43:42.024209+00:00,1,1,0,500,293,207,0,0,287,90,58.6,
+run-04-seed-0003,3,,2026-09-01T09:44:17.466042+00:00,1,1,0,500,285,215,0,0,267,92,57.0,
+run-05-seed-0004,4,,2026-09-01T09:44:52.552528+00:00,1,1,0,500,294,206,0,0,271,92,58.8,
