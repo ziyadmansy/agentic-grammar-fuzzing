@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+title: "Agentic Grammar Fuzzing: LLM-Guided Grammar Refinement for Parser Testing"
+message: "If you use this repository in your research, please cite it using the metadata below."
+type: software
+
+authors:
+  - family-names: Mansy
+    given-names: Ziyad
+    orcid: "https://orcid.org/0009-0008-3499-3828"
+
+repository-code: "https://github.com/ziyadmansy/agentic-grammar-fuzzing"
+
+url: "https://github.com/ziyadmansy/agentic-grammar-fuzzing"
+
+license: MIT
+
+keywords:
+  - grammar fuzzing
+  - agentic AI
+  - large language models
+  - parser testing
+  - software testing
+  - fuzzing
+  - Hypothesis
+  - ANTLR
+  - Python
+
+abstract: >
+  Research artifact accompanying the paper on agentic grammar fuzzing.
+  The project evaluates whether an LLM can iteratively refine a grammar-
+  based fuzzing strategy using parser feedback while preserving syntactic
+  correctness.
+
+version: "1.0.0"
