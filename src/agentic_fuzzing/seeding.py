@@ -9,9 +9,11 @@ comes from `hypothesis.core.threadlocal._hypothesis_global_random` -- a private
 `Random()` instance seeded from OS entropy that `random.seed()` does not touch.
 The winning draw is then picked by the module-level `random.shuffle`. Seeding
 only one of the two leaves the example stream non-reproducible across
-processes; seeding both makes it byte-identical, while leaving the number of
-distinct draws unchanged (8/8 unique, versus 7/8 unseeded), so the generator's
-behaviour is not narrowed.
+processes; seeding both makes it byte-identical. In a small check (8 draws of
+`baseline_json`, repeated across processes) seeding did not reduce the number of
+distinct values drawn -- 8/8 unique seeded versus 7/8 unseeded -- which is a
+sanity check against the generator collapsing, not a measurement of the draw
+distribution.
 
 The two documented alternatives were rejected on measurement, not preference:
 `settings(derandomize=True)` and `hypothesis.core.global_force_seed` both give
@@ -51,10 +53,11 @@ def seed_everything(seed: int) -> None:
     if threadlocal is None or not hasattr(threadlocal, "_hypothesis_global_random"):
         raise SeedingError(
             "hypothesis.core.threadlocal._hypothesis_global_random is missing; this "
-            f"seeding shim is coupled to Hypothesis internals and was verified against "
+            "seeding shim is coupled to Hypothesis internals and was verified against "
             f"6.165.5 (installed: {hypothesis.__version__}). Re-verify before running "
             "experiments that claim reproducibility."
         )
+    # thread-local: strategies drawn on another thread are not covered by this seed
     threadlocal._hypothesis_global_random = random.Random(seed)
 
 

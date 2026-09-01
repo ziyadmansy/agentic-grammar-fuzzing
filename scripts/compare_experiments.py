@@ -29,10 +29,10 @@ _ROWS = (
     ("accepted", "Accepted (mean per run)", 1),
     ("rejected", "Rejected (mean per run)", 1),
     ("encoding_errors", "Encoding errors (mean per run)", 1),
-    ("crashes", "Crashes (mean per run)", 1),
-    ("structural_fingerprints", "Structural fingerprints (mean per run)", 1),
-    ("rejection_signatures", "Rejection signatures (mean per run)", 1),
-    ("acceptance_percentage", "Acceptance rate (%)", 2),
+    ("crashes", "Crashes, timeouts and signals (mean per run)", 1),
+    ("structural_fingerprints", "Structural fingerprints (sum over iterations, mean per run)", 1),
+    ("rejection_signatures", "Rejection signatures (sum over iterations, mean per run)", 1),
+    ("acceptance_percentage", "Acceptance rate (% of inputs executed)", 2),
 )
 
 
@@ -168,16 +168,37 @@ def write_markdown(
         "These are descriptive statistics only -- no hypothesis test was performed and "
         "no significance is claimed.",
         "",
-        "Structural fingerprint and rejection signature counts are summed over each "
-        "run's iterations, so they are upper bounds on a run's distinct shapes; the "
-        "two arms may also execute different numbers of inputs per run, which the "
-        "first row makes explicit.",
+        "Definitions, so the rows are not over-read: the acceptance rate is "
+        "`accepted / total`, where the denominator includes inputs that failed to "
+        "encode and so never reached the parser; the crash row counts every outcome "
+        "that is neither accepted, rejected nor an encoding error, so timeouts and "
+        "signals are included; and fingerprint and signature counts are summed over "
+        "each run's iterations, making them upper bounds on a run's distinct shapes "
+        "rather than de-duplicated totals. All three conventions match "
+        "`scripts/make_loop_report.py`, so these numbers are comparable with the "
+        "per-iteration tables in README.md.",
+    ]
+    baseline_executed = _mean(baseline, "executed")
+    refined_executed = _mean(refined, "executed")
+    if baseline_executed and refined_executed and abs(refined_executed - baseline_executed) > 0.01 * baseline_executed:
+        lines += [
+            "",
+            f"**Unequal budgets.** {baseline_label} runs execute "
+            f"{baseline_executed:.0f} inputs on average and {refined_label} runs "
+            f"{refined_executed:.0f}. Every count-based row above scales with that "
+            "budget and is therefore not a like-for-like comparison; only the "
+            "acceptance rate is scale-free.",
+        ]
+    lines += [
         "",
         f"- {baseline_label}: `{baseline['root']}`",
         f"- {refined_label}: `{refined['root']}`",
     ]
-    incomplete = [(baseline_label, baseline), (refined_label, refined)]
-    notes = [f"- {label}: {problem}" for label, arm in incomplete for problem in arm["problems"]]
+    notes = [
+        f"- {label}: {problem}"
+        for label, arm in ((baseline_label, baseline), (refined_label, refined))
+        for problem in arm["problems"]
+    ]
     if notes:
         lines += ["", "Incomplete or missing data:", *notes]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

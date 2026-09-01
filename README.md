@@ -7,10 +7,12 @@ refines it using feedback from previous runs — no coverage instrumentation,
 only sanitizers and parser-level signal.
 
 > **Beyond the assignment brief:** this repo also stands up a second,
-> independent target ([parson](https://github.com/kgabis/parson)) and runs
-> the real agentic loop against it end-to-end — no LLM API key, no stub, no
-> shortcuts. See [Bonus: a second target, run for real (parson)](#bonus-a-second-target-run-for-real-parson)
-> for the full writeup: grammar-adaptation findings, five real iterations,
+> independent target ([parson](https://github.com/kgabis/parson)) and runs the
+> full pipeline against it end-to-end. No LLM API key was used: each iteration's
+> strategy was authored by hand in the proposer's role and then validated and
+> executed through exactly the same `load_strategy`/`run_campaign` path a model's
+> output would take. See [Bonus: a second target, run for real (parson)](#bonus-a-second-target-run-for-real-parson)
+> for the full writeup: grammar-adaptation findings, five real campaigns,
 > and an honestly-argued "why no crash" analysis.
 
 ## Contents
@@ -48,7 +50,7 @@ what coverage instrumentation would otherwise provide.
 | | |
 |---|---|
 | Library | [cJSON](https://github.com/DaveGamble/cJSON) |
-| Pinned version | `v1.7.19` (commit `c859b25da02955fef659d658b8f324b5cde87be`) |
+| Pinned version | `v1.7.19` (commit `c859b25da02955fef659d658b8f324b5cde87be3`) |
 | Format | JSON |
 | Grammar source | [ANTLR grammars-v4 `JSON.g4`](https://github.com/antlr/grammars-v4/blob/master/json/JSON.g4), vendored at [grammar/JSON.g4](grammar/JSON.g4) |
 
@@ -214,16 +216,20 @@ the pinned cJSON harness with a real [`OpenAIProposer`](src/agentic_fuzzing/llm.
 ```sh
 export OPENAI_API_KEY=sk-...
 PYTHONPATH=src .venv/bin/python scripts/run_refinement.py
-PYTHONPATH=src .venv/bin/python scripts/make_loop_report.py artifacts/cjson-loop
+PYTHONPATH=src .venv/bin/python scripts/make_loop_report.py \
+    artifacts/repeated/cjson-loop/run-01-seed-0000
 ```
 
 It persists five iterations of at most 500 examples each under
-`artifacts/cjson-loop/iteration-N/` (`prompt.txt`, `proposal.py`,
-`results.jsonl`), exactly mirroring the [parson bonus run](#bonus-a-second-target-run-for-real-parson)'s
-`artifacts/parson-loop` layout so the two targets' iteration tables are
-directly comparable via the same [`scripts/make_loop_report.py`](scripts/make_loop_report.py).
-Running it requires an `OPENAI_API_KEY` with API access; none is bundled with
-this repo.
+`<artifact-dir>/run-NN-seed-SSSS/iteration-N/` (`prompt.txt`, `proposal.py`,
+`results.jsonl`, and `proposal_error.txt` when a proposal is rejected), which
+mirrors the [parson bonus run](#bonus-a-second-target-run-for-real-parson)'s
+`artifacts/parson-loop` layout one level down, so the two targets' iteration
+tables are directly comparable via the same
+[`scripts/make_loop_report.py`](scripts/make_loop_report.py) — point it at a run
+directory for a repeated run, or at `artifacts/cjson-loop` for the committed
+official run. Running it requires an `OPENAI_API_KEY` with API access; none is
+bundled with this repo.
 
 **Proxy signal.** With no coverage instrumentation, refinement is steered by
 three observable, parser-level proxies instead:
@@ -255,12 +261,23 @@ overwritten:
 ```text
 artifacts/repeated/<experiment>/
   run-01-seed-0000/
-    manifest.json           seed, versions, platform, model, resolved arguments
-    iteration-N/            prompt.txt, proposal.py, results.jsonl, summary.json
+    manifest.json           seed, versions, platform, model, feedback mode, arguments
+    iteration-N/            prompt.txt, proposal.py, results.jsonl, summary.json,
+                            and proposal_error.txt if the proposal was rejected
   reproducibility.{json,md} environment provenance for the whole experiment
   aggregate.{csv,json}      per-run metrics plus mean/sd/min/max
-  figures/                  PNG + PDF figures
+  comparison.{csv,md}       written into the *refined* arm by compare_experiments.py
+  figures/                  acceptance_rate_per_iteration,
+                            structural_fingerprints_per_iteration,
+                            rejection_signatures_per_iteration,
+                            acceptance_rate_across_runs (each as .png and .pdf)
 ```
+
+The single-file baseline path (`--output` without `--artifact-dir`) writes
+`<output>.jsonl` plus `<output>.manifest.json` and
+`<output>.reproducibility.{json,md}` beside it, and
+[`scripts/make_report.py`](scripts/make_report.py) turns a JSONL into
+`artifacts/report.md` by default.
 
 ```sh
 # refined arm (needs OPENAI_API_KEY); baseline arm needs no key
@@ -275,10 +292,30 @@ PYTHONPATH=src .venv/bin/python scripts/run_baseline.py \
                                                 artifacts/repeated/cjson-loop
 ```
 
-Run *N* uses seed `--seed + N - 1`, and a non-empty run directory is refused
-unless `--overwrite` is passed. The analysis scripts read only `summary.json`,
-`manifest.json`, and `aggregate.json` — never `results.jsonl` — and none of
-them import the fuzzing engine.
+Run *N* uses seed `--seed + N - 1`. A run directory that already holds results
+is refused unless `--overwrite` is passed, which deletes and recreates it so a
+shorter re-run cannot leave a previous run's extra iterations behind. The
+analysis scripts read only `summary.json`, `manifest.json`, and
+`aggregate.json` — never `results.jsonl` — and none of them import the fuzzing
+engine. Re-run `aggregate_runs.py` before `make_figures.py` or
+`compare_experiments.py` after any new run, since both prefer an existing
+`aggregate.json` when one is present.
+
+**Ablation over the feedback signal.** `--feedback` selects which campaign
+metrics the prompt exposes: `counts` (outcome counts and total only),
+`counts+rejections` (adds `unique_rejections`), or `full` (the default and the
+behaviour used for every result reported here). Only the prompt's metrics
+object changes; the loop, the campaign, and the proposer are untouched, and the
+selected mode is recorded in each `manifest.json` and reproducibility report.
+
+**How the reported numbers are defined.** Acceptance rate is
+`accepted / total`, whose denominator includes inputs that failed to encode and
+never reached the parser; the crash column counts every outcome that is neither
+accepted, rejected nor an encoding error, so timeouts and signals are included;
+and per-run fingerprint and signature counts are summed over a run's
+iterations, making them upper bounds rather than de-duplicated totals. These
+are the same conventions as [`scripts/make_loop_report.py`](scripts/make_loop_report.py),
+so the aggregate tables and the per-iteration tables above are comparable.
 
 **How seeding works, and what it does not cover.** `.example()` draws its
 randomness from a private Hypothesis global that `random.seed()` does not
@@ -286,7 +323,10 @@ reach, and then selects from its batch using the module-level `random.shuffle`.
 Measured on Hypothesis 6.165.5 / CPython 3.14.7, seeding either one alone
 leaves the example stream non-reproducible across processes; seeding both
 ([`seeding.seed_everything`](src/agentic_fuzzing/seeding.py)) makes it
-byte-identical while leaving draw diversity unchanged. The documented
+byte-identical. In a small check (8 draws, repeated across processes) seeding
+did not reduce the number of distinct values drawn — 8/8 unique seeded versus
+7/8 unseeded — which guards against the generator collapsing but is not a
+measurement of the draw distribution. The documented
 alternatives (`settings(derandomize=True)`, `global_force_seed`) were rejected
 because both collapse 500 draws into repeats of a single batch of 10, which
 would change the fuzzing algorithm rather than just fix its starting point.
@@ -340,8 +380,10 @@ strategies and report generator.
 Baseline and early campaigns (see [artifacts/final-report.md](artifacts/final-report.md),
 [artifacts/baseline.jsonl](artifacts/baseline.jsonl), and
 [artifacts/final-baseline.jsonl](artifacts/final-baseline.jsonl)) exercised
-grammar-valid and near-valid JSON against the pinned cJSON build with an
-acceptance rate around 55–65% and no sanitizer crash signatures yet. This is
+grammar-valid and near-valid JSON against the pinned cJSON build with no
+sanitizer crash signatures. These early campaigns were small — 20 inputs each,
+accepting 11/20 (55%) and 13/20 (65%) — so they establish that the pipeline
+runs end to end, not a precise acceptance rate. This is
 consistent with cJSON's parser being small and well-exercised by its own
 test suite; the current generators produce mostly well-formed or
 near-well-formed documents. Next steps to push acceptance rate down while
@@ -354,7 +396,7 @@ already surfaces.
 
 > **This section was not required by the assignment.** Everything above
 > satisfies the brief on its own. What follows is additional, self-initiated
-> work: a second pinned target, a second harness, and three real (not
+> work: a second pinned target, a second harness, and five real (not
 > simulated) agentic-loop iterations, run specifically to see whether this
 > pipeline could turn up an actual memory-safety bug beyond the required
 > deliverable.

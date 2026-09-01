@@ -11,7 +11,6 @@ Nothing here imports the fuzzing engine, and every lookup degrades to
 metadata must not cost an experiment its results.
 """
 
-from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -64,7 +63,9 @@ def _parser_identity(executable: str, repo_root: Path) -> tuple[str, str]:
         commit = _git(vendor_dir, "rev-parse", "HEAD")
         if commit != UNKNOWN:
             return name, commit
-    return name, _PINNED_COMMITS.get(vendor, UNKNOWN)
+    documented = _PINNED_COMMITS.get(vendor)
+    # never present a documented commit as if it had been read from the tree
+    return name, f"{documented} (documented, not verified)" if documented else UNKNOWN
 
 
 def _harness_facts(executable: str) -> dict[str, str]:
@@ -119,7 +120,9 @@ def build_report(
         "python_version": manifest.get("python_version", UNKNOWN),
         "python_implementation": manifest.get("python_implementation", UNKNOWN),
         "operating_system": f"{platform.system()} {platform.release()}".strip() or UNKNOWN,
-        "platform": manifest.get("platform", platform.platform()),
+        # the manifest's platform is the machine that ran the experiment; this
+        # process may not be it, so do not substitute the reporting host
+        "platform": manifest.get("platform", UNKNOWN),
         "hypothesis_version": manifest.get("hypothesis_version", UNKNOWN),
         "model": manifest.get("model") or "not applicable",
         "feedback_mode": manifest.get("feedback_mode") or "not applicable",
@@ -130,7 +133,7 @@ def build_report(
         "max_refinement_iterations": max_refinement_iterations
         if max_refinement_iterations is not None
         else "not applicable",
-        "timestamp": manifest.get("timestamp", datetime.now(timezone.utc).isoformat()),
+        "timestamp": manifest.get("timestamp", UNKNOWN),
         "command_line": shlex.join(sys.argv),
         "git_commit": _git(repo_root, "rev-parse", "HEAD"),
         "git_branch": _git(repo_root, "rev-parse", "--abbrev-ref", "HEAD"),

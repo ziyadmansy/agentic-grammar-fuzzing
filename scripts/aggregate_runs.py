@@ -20,7 +20,6 @@ from typing import Any
 # Statuses accounted for by name; every other status key in `counts` (crash,
 # timeout, signal:*) is a failure, matching scripts/make_loop_report.py.
 _NAMED_STATUSES = {"accepted", "rejected", "encoding_error", "proposal_rejected"}
-
 _METRICS = (
     "accepted",
     "rejected",
@@ -126,6 +125,8 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
         "iterations_with_data": with_data,
         "iterations_rejected": rejected_iterations,
         **totals,
+        # denominator is summary["total"], which counts encoding errors that never
+        # reached the parser -- the same convention as make_loop_report.py
         "acceptance_percentage": round(100.0 * totals["accepted"] / executed, 3) if executed else None,
         "problems": problems,
     }
