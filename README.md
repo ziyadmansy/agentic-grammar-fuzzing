@@ -25,6 +25,7 @@ only sanitizers and parser-level signal.
   - [Harness](#harness)
   - [Baseline campaign](#baseline-campaign)
   - [Agentic refinement loop](#agentic-refinement-loop)
+  - [Repeated experiments and reproducibility](#repeated-experiments-and-reproducibility)
   - [Crash triage and minimization](#crash-triage-and-minimization)
   - [Testing](#testing)
   - [Results so far](#results-so-far)
@@ -129,8 +130,13 @@ artifacts/     Logged campaign results and generated reports
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
-pip install hypothesis pytest
+pip install -r requirements.txt
 ```
+
+Versions are pinned because the deterministic-seeding shim is coupled to a
+Hypothesis internal (see [Repeated experiments and reproducibility](#repeated-experiments-and-reproducibility)).
+`openai` is only needed for the live refinement loop and `matplotlib` only for
+figure generation; the pipeline and its tests need neither.
 
 On macOS, also install Homebrew's LLVM so sanitizer builds don't hit Apple's
 ASan startup deadlock (see [Environment notes](#environment-notes)):
@@ -238,6 +244,61 @@ These three numbers are the entire feedback signal handed back to the LLM
 each iteration; the prompt explicitly asks it to steer away from
 mostly-rejected productions and toward structurally novel, deeply nested, or
 previously-uncrashed shapes.
+
+## Repeated experiments and reproducibility
+
+The single official runs above are preserved unchanged under
+`artifacts/cjson-loop` and `artifacts/parson-loop`. Repeated, seeded
+experiments write to a separate tree so those cited artifacts can never be
+overwritten:
+
+```text
+artifacts/repeated/<experiment>/
+  run-01-seed-0000/
+    manifest.json           seed, versions, platform, model, resolved arguments
+    iteration-N/            prompt.txt, proposal.py, results.jsonl, summary.json
+  reproducibility.{json,md} environment provenance for the whole experiment
+  aggregate.{csv,json}      per-run metrics plus mean/sd/min/max
+  figures/                  PNG + PDF figures
+```
+
+```sh
+# refined arm (needs OPENAI_API_KEY); baseline arm needs no key
+PYTHONPATH=src .venv/bin/python scripts/run_refinement.py \
+    --artifact-dir artifacts/repeated/cjson-loop --runs 5 --seed 0
+PYTHONPATH=src .venv/bin/python scripts/run_baseline.py \
+    --artifact-dir artifacts/repeated/cjson-baseline --runs 5 --examples 500 --seed 0
+
+.venv/bin/python scripts/aggregate_runs.py      artifacts/repeated/cjson-loop
+.venv/bin/python scripts/make_figures.py        artifacts/repeated/cjson-loop
+.venv/bin/python scripts/compare_experiments.py artifacts/repeated/cjson-baseline \
+                                                artifacts/repeated/cjson-loop
+```
+
+Run *N* uses seed `--seed + N - 1`, and a non-empty run directory is refused
+unless `--overwrite` is passed. The analysis scripts read only `summary.json`,
+`manifest.json`, and `aggregate.json` — never `results.jsonl` — and none of
+them import the fuzzing engine.
+
+**How seeding works, and what it does not cover.** `.example()` draws its
+randomness from a private Hypothesis global that `random.seed()` does not
+reach, and then selects from its batch using the module-level `random.shuffle`.
+Measured on Hypothesis 6.165.5 / CPython 3.14.7, seeding either one alone
+leaves the example stream non-reproducible across processes; seeding both
+([`seeding.seed_everything`](src/agentic_fuzzing/seeding.py)) makes it
+byte-identical while leaving draw diversity unchanged. The documented
+alternatives (`settings(derandomize=True)`, `global_force_seed`) were rejected
+because both collapse 500 draws into repeats of a single batch of 10, which
+would change the fuzzing algorithm rather than just fix its starting point.
+Because this relies on a Hypothesis internal, the version is pinned and the
+shim fails loudly if the attribute disappears.
+
+Reproducibility is therefore scoped to the *generated input stream*. It does
+not extend to: LLM proposals (`temperature=0.2`, no seed, server-side model
+drift — so a seeded refined run is reproducible given the same proposal
+source, not end to end); `timeout` classification, which is wall-clock and
+load dependent; or the harness binary, which is gitignored and host-compiled,
+and is therefore identified by SHA-256 in each reproducibility report.
 
 ## Crash triage and minimization
 

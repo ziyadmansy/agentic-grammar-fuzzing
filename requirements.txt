@@ -1,0 +1,8 @@
+# Pinned so that seeded runs are repeatable: src/agentic_fuzzing/seeding.py is
+# coupled to a Hypothesis internal that was verified against this version.
+hypothesis==6.165.5
+pytest==9.1.1
+# only needed for the LLM-driven refinement loop
+openai==3.0.0
+# only needed for scripts/make_figures.py
+matplotlib==3.11.1

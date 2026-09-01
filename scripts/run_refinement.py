@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Run the real agentic refinement loop against the pinned cJSON harness."""
+"""Run the real agentic refinement loop against a pinned harness, once or repeatedly."""
 
 import argparse
-import json
 import os
 from pathlib import Path
+from typing import Any
 
 from openai import OpenAI
 
+from agentic_fuzzing.experiment import run_directory, write_summary
 from agentic_fuzzing.llm import OpenAIProposer
 from agentic_fuzzing.refinement import run_refinement_loop
 from agentic_fuzzing.reproducibility import build_report, write_report
@@ -42,14 +43,14 @@ def main() -> None:
     client = OpenAI(api_key=api_key)
     proposer = OpenAIProposer(client, model=args.model)
     arguments = resolved_arguments(args)
-    first_manifest: dict | None = None
+    first_manifest: dict[str, Any] | None = None
 
     for run_index in range(args.runs):
         seed = args.seed + run_index
-        run_dir = args.artifact_dir / f"run-{run_index + 1:02d}-seed-{seed:04d}"
-        if run_dir.exists() and any(run_dir.iterdir()) and not args.overwrite:
-            raise SystemExit(f"{run_dir} already contains results; pass --overwrite to replace them")
-        run_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            run_dir = run_directory(args.artifact_dir, run_index, seed, args.overwrite)
+        except FileExistsError as error:
+            raise SystemExit(str(error)) from error
         # written before the run so a crashed run still carries its provenance
         manifest = build_manifest(seed, arguments, model=args.model)
         first_manifest = first_manifest or manifest
@@ -69,8 +70,7 @@ def main() -> None:
         for index, summary in enumerate(summaries, start=1):
             print(f"iteration-{index}: {summary.as_dict()}")
             # mirror artifacts/parson-loop's layout, which persists summary.json per iteration
-            summary_path = run_dir / f"iteration-{index}" / "summary.json"
-            summary_path.write_text(json.dumps(summary.as_dict(), indent=2) + "\n", encoding="utf-8")
+            write_summary(run_dir / f"iteration-{index}", summary.as_dict())
 
     if first_manifest is not None:
         report = build_report(

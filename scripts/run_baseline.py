@@ -11,8 +11,10 @@ iteration because there is nothing to refine.
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 from agentic_fuzzing.campaign import run_campaign
+from agentic_fuzzing.experiment import run_directory, write_summary
 from agentic_fuzzing.json_strategy import baseline_json, near_valid_json
 from agentic_fuzzing.refinement import summarize_records
 from agentic_fuzzing.reproducibility import build_report, write_report
@@ -24,7 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the bounded JSON baseline campaign")
     parser.add_argument("--executable", default="build/cjson_harness")
-    parser.add_argument("--examples", type=int, default=50)
+    parser.add_argument("--examples", type=int, default=50, help="refined runs use 500 per iteration")
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument("--output", type=Path, default=Path("artifacts/baseline.jsonl"))
     parser.add_argument("--seed", type=int, default=0, help="seed of the first run; run N uses seed+N-1")
@@ -64,12 +66,13 @@ def main() -> None:
         return
 
     arguments = resolved_arguments(args)
-    first_manifest: dict | None = None
+    first_manifest: dict[str, Any] | None = None
     for run_index in range(args.runs):
         seed = args.seed + run_index
-        run_dir = args.artifact_dir / f"run-{run_index + 1:02d}-seed-{seed:04d}"
-        if run_dir.exists() and any(run_dir.iterdir()) and not args.overwrite:
-            raise SystemExit(f"{run_dir} already contains results; pass --overwrite to replace them")
+        try:
+            run_dir = run_directory(args.artifact_dir, run_index, seed, args.overwrite)
+        except FileExistsError as error:
+            raise SystemExit(str(error)) from error
         iteration_dir = run_dir / "iteration-1"
         iteration_dir.mkdir(parents=True, exist_ok=True)
         # written before the run so a crashed run still carries its provenance
@@ -83,9 +86,7 @@ def main() -> None:
         run_campaign(args.executable, input_stream(), result_path, args.examples, args.timeout)
         with result_path.open(encoding="utf-8") as result_file:
             summary = summarize_records(json.loads(line) for line in result_file)
-        (iteration_dir / "summary.json").write_text(
-            json.dumps(summary.as_dict(), indent=2) + "\n", encoding="utf-8"
-        )
+        write_summary(iteration_dir, summary.as_dict())
         print(f"iteration-1: {summary.as_dict()}")
 
     if first_manifest is not None:
@@ -93,7 +94,7 @@ def main() -> None:
             print(path)
 
 
-def _report(manifest: dict, args: argparse.Namespace, runs: int) -> dict:
+def _report(manifest: dict[str, Any], args: argparse.Namespace, runs: int) -> dict[str, Any]:
     return build_report(
         manifest,
         experiment_type="baseline",
