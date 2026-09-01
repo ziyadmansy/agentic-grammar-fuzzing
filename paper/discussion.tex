@@ -1,3 +1,117 @@
 \section{Discussion}
+\label{sec:discussion}
 
-TODO
+\subsection{Interpreting the effect on cJSON}
+The result in Section~\ref{sec:evaluation} says something narrower than ``the
+LLM makes fuzzing better'': across five seeded runs, refinement reliably
+moved a generator from producing mostly-invalid input toward producing
+mostly-valid, more structurally varied input, using only the three
+coverage-free proxies it was given. That is a real, statistically clean
+effect at the sample size tested, but it is worth being explicit about what
+it does not show. A 96.8\% mean acceptance rate is close to a ceiling, and a
+generator that always emits valid input has, by construction, stopped
+exercising the accept/reject boundary at all -- exactly the region the
+project's own \texttt{near\_valid\_json} baseline strategy exists to probe.
+Acceptance rate rising is desirable when the baseline is far from valid and
+mostly testing the rejection path, which is the regime our baseline started
+in; it is not obviously desirable in the limit, where a generator that never
+produces a rejected or malformed input has traded away exactly the
+boundary-probing behavior that historically finds parser bugs. We did not
+observe this failure mode directly -- structural diversity also rose, and
+rejection signatures, while fewer, did not collapse to a single trivial
+case -- but the proxy signal as designed rewards acceptance rate
+monotonically and has no explicit floor protecting the near-valid regime.
+A refinement objective that also rewarded a target reject rate, rather than
+treating ``more accepted'' as strictly better without limit, would be a
+direct, low-cost improvement to the design evaluated here.
+
+\subsection{Interpreting the null result on parson}
+Finding no crash across 3{,}000 sanitizer-instrumented executions against
+parson is evidence about this pipeline's search within this budget on this
+pinned commit, not evidence about parson's correctness in general, and not
+evidence about the method's bug-finding power in general. We treated the
+source-level argument in Section~\ref{sec:evaluation} as a way to make the
+absence explainable rather than mysterious, but an explainable absence is
+still an absence: five iterations against two hand-picked stress axes (wide
+structures, and the internal free path) is a small, targeted search of a
+small, well-tested codebase, and the honest reading is that this budget was
+not enough to distinguish ``no bug in the code paths we exercised'' from ``a
+bug exists in a code path we did not exercise,'' such as parson's public
+mutation API, which the black-box parse-then-free harness used here cannot
+reach at all.
+
+What the parson run does establish is narrower and more mechanical: every
+non-target-specific pipeline component (\texttt{runner}, \texttt{campaign},
+\texttt{proposal}, \texttt{refinement}, \texttt{triage}, \texttt{minimize})
+worked unmodified against a second parser with a different, and in two
+respects opposite, set of grammar adaptations, with only a new harness and
+build script required. That is a claim about the pipeline's portability
+across targets, not a claim about its effectiveness at finding bugs in any
+particular one of them.
+
+\subsection{Threats to validity}
+\textbf{Construct validity.} A ``crash'' in this pipeline is defined purely
+by sanitizer output and process signals; it cannot detect a parser that
+silently misparses, accepts input the grammar disallows, or otherwise
+violates the specification without a memory-safety fault. The grammar
+mismatches documented in Sections~\ref{sec:methodology}
+and~\ref{sec:evaluation} (duplicate keys, full-buffer consumption) were
+found by deliberately generating inputs in that region and reading the
+result, not by any automated oracle; a generator that never targets an
+under-specified region of the grammar would not surface this class of
+finding at all.
+
+\textbf{Internal validity.} The structural-fingerprint proxy truncates at
+256 bytes (Section~\ref{sec:methodology}), so it systematically undercounts
+diversity among longer, deeply nested inputs -- exactly the inputs a
+refinement loop chasing ``more diversity'' is most likely to produce over
+successive iterations, which could understate the true diversity gain we
+report.
+
+\textbf{Statistical validity.} $n{=}5$ runs per arm is small; the exact
+test used is appropriate for that size and makes no distributional
+assumption, but $p \approx 0.0079$ is a ceiling on how small an exact
+$p$-value five-per-arm observations can produce, not a measure of effect
+size on its own, and we report the actual acceptance-rate and
+diversity numbers in Table~\ref{tab:cjson-comparison} for that reason.
+Baseline and refined arms also executed different total numbers of inputs
+(Section~\ref{sec:evaluation}), so any reader extending this comparison with
+new count-based metrics should convert to a rate first.
+
+\textbf{External validity.} All results are on JSON, on two relatively
+small and independently well-tested C parsers, with one LLM
+(\texttt{gpt-4.1-mini}) at one temperature setting for the only
+LLM-driven arm. We make no claim that the magnitude of the cJSON effect, or
+the absence of a crash on parson, generalizes to other formats, other
+parsers, or other proposer models.
+
+\subsection{When this approach is, and is not, the right tool}
+The motivating case for a coverage-free feedback loop is a target that
+genuinely cannot be instrumented -- a vendored dependency pinned at a
+specific commit for compatibility reasons, a license-restricted or
+closed-source binary, or a cross-compiled/embedded parser where an
+instrumented build would not be representative of what ships. Where
+coverage instrumentation \emph{is} available, a coverage-guided or
+grammar-aware coverage-guided fuzzer (Section~\ref{sec:related-work}) has
+strictly more signal to work with and should be preferred; this pipeline is
+not proposed as a replacement for that setting, only as an option for the
+black-box one.
+
+\subsection{Future work}
+Three extensions are direct and low-cost given the existing infrastructure.
+First, the pipeline already supports an ablation over which subset of the
+proxy signal is exposed to the proposer (\texttt{counts},
+\texttt{counts+rejections}, or \texttt{full}) but this was not evaluated
+here; running it would isolate which of the three signals is doing the
+actual steering work. Second, adding an explicit reject-rate floor to the
+refinement prompt, motivated directly by Section~\ref{sec:discussion}'s
+concern about an acceptance-rate ceiling, could test whether it preserves
+boundary-probing behavior without sacrificing the diversity gain measured
+here. Third, and most directly relevant to the parson null result, driving
+\texttt{json\_value\_free} through parson's public mutation API rather than
+only the parse-then-free path would exercise object lifetime code this
+black-box harness cannot currently reach at all. Beyond these, comparing
+against an existing external fuzzer under an equalized time or execution
+budget, rather than only against this project's own static baseline, is the
+most direct way to situate the magnitude of the cJSON result against prior
+work.
