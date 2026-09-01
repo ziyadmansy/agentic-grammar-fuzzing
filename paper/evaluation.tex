@@ -58,7 +58,7 @@ this target.
 \subsection{RQ2: generalization to parson}
 
 We reused every pipeline component unchanged against a second, independent
-target, parson (commit \texttt{ba29f4e}, v1.5.3), with a human standing in
+target, parson~\cite{gabis2024parson} (commit \texttt{ba29f4e}, v1.5.3), with a human standing in
 for the LLM proposer call and every resulting proposal passing through the
 identical validation and execution path (Section~\ref{sec:methodology}).
 Reconciling the same JSON grammar against parson's real behavior surfaced
@@ -78,6 +78,9 @@ decision (duplicate keys: accept vs.\ reject) on two independently
 implemented parsers is, on its own, evidence that a purely formal grammar
 specification cannot supply the target-specific signal needed to fuzz either
 implementation precisely.
+
+Table~\ref{tab:parson-iterations} summarizes the five iterations actually
+run.
 
 \begin{table}[t]
 \centering

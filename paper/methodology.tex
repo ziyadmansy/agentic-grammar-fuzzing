@@ -10,9 +10,9 @@ pipeline -- harness contract, proxy signal, refinement loop, and sandbox --
 generalize to a second, independently adapted target without modification?
 
 \subsection{Target, grammar, and harness}
-The primary target is cJSON, pinned at v1.7.19
-(commit \texttt{c859b25}). The grammar is the ANTLR grammars-v4 JSON
-grammar~\cite{antlr2024grammarsv4}, vendored unmodified. A thin C harness
+The primary target is cJSON~\cite{gamble2024cjson}, pinned at v1.7.19
+(commit \texttt{c859b25}). The grammar is the ANTLR~\cite{parr2013antlr}
+grammars-v4 JSON grammar~\cite{antlr2024grammarsv4}, vendored unmodified. A thin C harness
 reads a candidate input from stdin and parses it with
 \texttt{cJSON\_ParseWithLengthOpts(..., require\_null\_terminated=1)}, the
 library's strictest entry point: it rejects any input with trailing bytes
