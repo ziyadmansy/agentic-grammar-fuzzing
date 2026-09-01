@@ -40,6 +40,7 @@ discussion.
   - [Results so far](#results-so-far)
   - [**Bonus: a second target, run for real (parson)**](#bonus-a-second-target-run-for-real-parson)
   - [Environment notes](#environment-notes)
+  - [Citation](#citation)
 
 ## Overview
 
@@ -575,6 +576,24 @@ first pass is more likely to find something.
   is a thin, swappable adapter; the refinement loop itself has no dependency
   on a specific LLM provider and is fully exercised in tests with a
   deterministic stub proposer.
+
+## Citation
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22231289.svg)](https://doi.org/10.5281/zenodo.22231289)
+
+If you use this repository, please cite the archived release
+(see also [`CITATION.cff`](CITATION.cff)):
+
+```bibtex
+@software{mansy2026agentic,
+  author  = {Mansy, Ziyad},
+  title   = {{Agentic Grammar Fuzzing: LLM-Guided Grammar Refinement for Parser Testing}},
+  year    = {2026},
+  version = {1.0.0},
+  doi     = {10.5281/zenodo.22231289},
+  url     = {https://github.com/ziyadmansy/agentic-grammar-fuzzing}
+}
+```
 
 ---
 
