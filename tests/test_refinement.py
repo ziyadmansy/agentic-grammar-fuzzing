@@ -1,6 +1,8 @@
 from collections import Counter
 import sys
 
+import pytest
+
 from agentic_fuzzing.refinement import (
     CampaignSummary,
     build_refinement_prompt,
@@ -28,6 +30,30 @@ def test_refinement_prompt_omits_error_section_by_default() -> None:
     prompt = build_refinement_prompt("json : value EOF;", CampaignSummary(Counter(), 0, 0, 0, 0))
 
     assert "previous iteration's proposal failed" not in prompt
+
+
+def test_refinement_prompt_feedback_modes_restrict_visible_metrics() -> None:
+    summary = CampaignSummary(Counter({"accepted": 3}), 1, 2, 4, 5)
+    grammar = "json : value EOF;"
+
+    counts_only = build_refinement_prompt(grammar, summary, feedback_mode="counts")
+    with_rejections = build_refinement_prompt(grammar, summary, feedback_mode="counts+rejections")
+    full = build_refinement_prompt(grammar, summary, feedback_mode="full")
+
+    for prompt in (counts_only, with_rejections, full):
+        assert '"accepted": 3' in prompt and '"total": 5' in prompt
+    assert "unique_rejections" not in counts_only
+    assert "unique_structures" not in counts_only
+    assert '"unique_rejections": 4' in with_rejections
+    assert "unique_structures" not in with_rejections
+    assert '"unique_structures": 2' in full and '"unique_lengths": 1' in full
+    # the default must stay the current, unrestricted behaviour
+    assert build_refinement_prompt(grammar, summary) == full
+
+
+def test_refinement_prompt_rejects_unknown_feedback_mode() -> None:
+    with pytest.raises(ValueError):
+        build_refinement_prompt("json : value EOF;", CampaignSummary(Counter(), 0, 0, 0, 0), feedback_mode="none")
 
 
 def test_refinement_loop_executes_generated_proposal(tmp_path) -> None:

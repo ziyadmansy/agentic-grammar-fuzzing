@@ -44,7 +44,26 @@ def summarize_records(records: Iterable[dict[str, object]]) -> CampaignSummary:
     return CampaignSummary(counts, len(lengths), len(structures), len(rejections), total)
 
 
-def build_refinement_prompt(grammar: str, summary: CampaignSummary, previous_error: str | None = None) -> str:
+# Ablation over the parser-feedback signal: a mode selects which CampaignSummary
+# fields the LLM is allowed to see. Only the prompt's metrics object differs.
+FEEDBACK_MODES = {
+    "counts": ("counts", "total"),
+    "counts+rejections": ("counts", "total", "unique_rejections"),
+    "full": ("counts", "total", "unique_lengths", "unique_structures", "unique_rejections"),
+}
+DEFAULT_FEEDBACK_MODE = "full"
+
+
+def build_refinement_prompt(
+    grammar: str,
+    summary: CampaignSummary,
+    previous_error: str | None = None,
+    feedback_mode: str = DEFAULT_FEEDBACK_MODE,
+) -> str:
+    if feedback_mode not in FEEDBACK_MODES:
+        raise ValueError(f"unknown feedback mode {feedback_mode!r}; expected one of {sorted(FEEDBACK_MODES)}")
+    fields = FEEDBACK_MODES[feedback_mode]
+    metrics = {key: value for key, value in summary.as_dict().items() if key in fields}
     error_section = (
         f"\nThe previous iteration's proposal failed before producing usable data:\n{previous_error}\n"
         if previous_error
@@ -56,7 +75,7 @@ Grammar:
 {grammar}
 
 Observed campaign metrics (from the last iteration that produced usable data):
-{json.dumps(summary.as_dict(), sort_keys=True)}
+{json.dumps(metrics, sort_keys=True)}
 {error_section}
 Return only Python source defining `@st.composite def generated_json(draw) -> bytes`.
 Use bounded `st.recursive` or `@st.composite`, preserve valid and near-valid cases,
@@ -75,6 +94,7 @@ def run_refinement_loop(
     examples_per_iteration: int = 500,
     timeout_seconds: float = 5.0,
     input_factory: Callable[[str, int], Iterable[bytes]] | None = None,
+    feedback_mode: str = DEFAULT_FEEDBACK_MODE,
 ) -> list[CampaignSummary]:
     """Run bounded campaigns and persist each LLM proposal for review."""
     summaries: list[CampaignSummary] = []
@@ -88,7 +108,7 @@ def run_refinement_loop(
     last_good = CampaignSummary(Counter(), 0, 0, 0, 0)
     last_error: str | None = None
     for iteration in range(min(iterations, 5)):
-        prompt = build_refinement_prompt(grammar, last_good, last_error)
+        prompt = build_refinement_prompt(grammar, last_good, last_error, feedback_mode)
         proposal = proposer(prompt)
         iteration_dir = artifact_dir / f"iteration-{iteration + 1}"
         iteration_dir.mkdir(parents=True, exist_ok=True)

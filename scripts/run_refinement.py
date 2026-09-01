@@ -10,7 +10,7 @@ from openai import OpenAI
 
 from agentic_fuzzing.experiment import run_directory, write_summary
 from agentic_fuzzing.llm import OpenAIProposer
-from agentic_fuzzing.refinement import run_refinement_loop
+from agentic_fuzzing.refinement import DEFAULT_FEEDBACK_MODE, FEEDBACK_MODES, run_refinement_loop
 from agentic_fuzzing.reproducibility import build_report, write_report
 from agentic_fuzzing.seeding import build_manifest, resolved_arguments, seed_everything, write_manifest
 
@@ -31,6 +31,12 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0, help="seed of the first run; run N uses seed+N-1")
     parser.add_argument("--runs", type=int, default=1, help="number of independent repeated runs")
     parser.add_argument("--overwrite", action="store_true", help="allow writing into a non-empty run directory")
+    parser.add_argument(
+        "--feedback",
+        choices=sorted(FEEDBACK_MODES),
+        default=DEFAULT_FEEDBACK_MODE,
+        help="parser-feedback ablation: which campaign metrics the prompt exposes",
+    )
     args = parser.parse_args()
 
     if args.runs < 1:
@@ -52,7 +58,7 @@ def main() -> None:
         except FileExistsError as error:
             raise SystemExit(str(error)) from error
         # written before the run so a crashed run still carries its provenance
-        manifest = build_manifest(seed, arguments, model=args.model)
+        manifest = build_manifest(seed, arguments, model=args.model, feedback_mode=args.feedback)
         first_manifest = first_manifest or manifest
         write_manifest(run_dir / "manifest.json", manifest)
 
@@ -66,6 +72,7 @@ def main() -> None:
             iterations=args.iterations,
             examples_per_iteration=args.examples,
             timeout_seconds=args.timeout,
+            feedback_mode=args.feedback,
         )
         for index, summary in enumerate(summaries, start=1):
             print(f"iteration-{index}: {summary.as_dict()}")

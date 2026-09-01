@@ -58,7 +58,12 @@ def seed_everything(seed: int) -> None:
     threadlocal._hypothesis_global_random = random.Random(seed)
 
 
-def build_manifest(seed: int, arguments: dict[str, Any], model: str | None = None) -> dict[str, Any]:
+def build_manifest(
+    seed: int,
+    arguments: dict[str, Any],
+    model: str | None = None,
+    feedback_mode: str | None = None,
+) -> dict[str, Any]:
     """Describe one run well enough to judge whether it can be repeated."""
     return {
         "seed": seed,
@@ -68,6 +73,7 @@ def build_manifest(seed: int, arguments: dict[str, Any], model: str | None = Non
         "platform": platform.platform(),
         "hypothesis_version": hypothesis.__version__,
         "model": model,
+        "feedback_mode": feedback_mode,
         "arguments": arguments,
     }
 
