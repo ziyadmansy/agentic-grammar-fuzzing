@@ -256,7 +256,11 @@ previously-uncrashed shapes.
 The single official runs above are preserved unchanged under
 `artifacts/cjson-loop` and `artifacts/parson-loop`. Repeated, seeded
 experiments write to a separate tree so those cited artifacts can never be
-overwritten:
+overwritten. The final baseline-vs-refined comparison cited in
+[Results so far](#results-so-far) is one instance of this: `artifacts/final/`
+uses this exact `run-NN-seed-SSSS/` layout, just under a name that reflects
+its role (the cited comparison) rather than the generic `repeated/` path
+used for exploratory reruns:
 
 ```text
 artifacts/repeated/<experiment>/
@@ -377,20 +381,62 @@ strategies and report generator.
 
 ## Results so far
 
-Baseline and early campaigns (see [artifacts/final-report.md](artifacts/final-report.md),
+**Final result: a seeded, 5-run-per-arm comparison of the baseline generator
+against the LLM-refined loop**, both run against the pinned cJSON build with
+`-fsanitize=address,undefined` and `gpt-4.1-mini` as the proposer (full data
+in [artifacts/final/comparison.md](artifacts/final/comparison.md), per-run
+detail and figures under [artifacts/final/baseline](artifacts/final/baseline)
+and [artifacts/final/refined](artifacts/final/refined)):
+
+| Metric | Baseline (n = 5) | Refined (n = 5) | Change |
+|---|---:|---:|---:|
+| Acceptance rate | 57.64% | 96.77% | +39.13 pp (+67.9%) |
+| Structural fingerprints (sum/run, mean) | 276.0 | 616.2 | +123.3% |
+| Rejection signatures (sum/run, mean) | 92.4 | 29.6 | -68.0% |
+| Sanitizer crashes / timeouts / signals | 0 | 0 | — |
+
+Five independent runs per arm (seeds 0-4), each five refinement iterations of
+up to 500 examples. Every run's figures (`acceptance_rate_per_iteration`,
+`structural_fingerprints_per_iteration`, `rejection_signatures_per_iteration`,
+`acceptance_rate_across_runs`, each as `.png`/`.pdf`) and reproducibility
+report (compiler, harness SHA-256, Hypothesis/Python versions, per-run seeds,
+exact command line, repository commit) are under
+`artifacts/final/{baseline,refined}/`. No crashes were found in either arm —
+the measured effect is that LLM-guided refinement reliably steers the
+generator toward grammar-valid, structurally diverse inputs, not toward a
+memory-safety bug in cJSON specifically (see the
+[parson bonus](#bonus-a-second-target-run-for-real-parson) below for where
+this pipeline did go looking for one). These are descriptive statistics over
+5 runs per arm — no significance test was performed and none is claimed; see
+[artifacts/final/comparison.md](artifacts/final/comparison.md) for the full
+caveats on unequal per-arm budgets and metric definitions.
+
+This comparison uses the exact recipe from
+[Repeated experiments and reproducibility](#repeated-experiments-and-reproducibility)
+below, pointed at `artifacts/final/{baseline,refined}` instead of
+`artifacts/repeated/...`:
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/run_baseline.py \
+    --artifact-dir artifacts/final/baseline --runs 5 --examples 500 --seed 0
+PYTHONPATH=src .venv/bin/python scripts/run_refinement.py \
+    --artifact-dir artifacts/final/refined --runs 5 --iterations 5 \
+    --examples 500 --seed 0 --model gpt-4.1-mini
+.venv/bin/python scripts/aggregate_runs.py artifacts/final/baseline
+.venv/bin/python scripts/aggregate_runs.py artifacts/final/refined
+.venv/bin/python scripts/make_figures.py artifacts/final/baseline
+.venv/bin/python scripts/make_figures.py artifacts/final/refined
+.venv/bin/python scripts/compare_experiments.py artifacts/final/baseline artifacts/final/refined
+```
+
+**Earlier sanity-check campaigns.** Before this final comparison, small
+20-input campaigns (see [artifacts/final-report.md](artifacts/final-report.md),
 [artifacts/baseline.jsonl](artifacts/baseline.jsonl), and
-[artifacts/final-baseline.jsonl](artifacts/final-baseline.jsonl)) exercised
-grammar-valid and near-valid JSON against the pinned cJSON build with no
-sanitizer crash signatures. These early campaigns were small — 20 inputs each,
-accepting 11/20 (55%) and 13/20 (65%) — so they establish that the pipeline
-runs end to end, not a precise acceptance rate. This is
-consistent with cJSON's parser being small and well-exercised by its own
-test suite; the current generators produce mostly well-formed or
-near-well-formed documents. Next steps to push acceptance rate down while
-keeping structural diversity up: bias the LLM's refinement prompt toward
-deep nesting, large numeric literals near platform limits, and malformed
-Unicode escapes, per the "under-tested grammar regions" the diversity proxy
-already surfaces.
+[artifacts/final-baseline.jsonl](artifacts/final-baseline.jsonl)) validated
+that the pipeline runs end to end (11/20 and 13/20 accepted, no crash
+signatures) before the LLM was ever wired in. They predate and are superseded
+by the table above; kept for provenance, not as a result to draw conclusions
+from.
 
 ## Bonus: a second target, run for real (parson)
 

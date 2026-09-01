@@ -1,3 +1,29 @@
-\section{Abstract}
+\section*{Abstract}
 
-TODO
+Property-based testing tools such as Hypothesis can turn a formal grammar
+into a generator of syntactically valid inputs, but the generator itself is
+typically static: hand-tuned once and reused unchanged for the rest of a
+fuzzing campaign. We study whether a large language model (LLM), given only
+a formal grammar and parser-level feedback -- with no coverage
+instrumentation -- can iteratively refine such a generator. We build a fully
+black-box pipeline targeting the cJSON parser (pinned at v1.7.19): a baseline
+Hypothesis strategy derived directly from an ANTLR JSON grammar generates
+inputs, a sanitizer-instrumented harness classifies each as accepted,
+rejected, or crashing, and a refinement loop feeds an LLM a summary of three
+observable proxy signals -- acceptance rate, the structural diversity of the
+shapes produced, and the distinct rejection signatures seen -- asking it to
+propose a revised generator. Every proposal is statically sandboxed
+(AST-checked, import-restricted) and validated before it ever touches the
+target binary. Across five independent, seeded runs of five refinement
+iterations each, LLM-guided refinement raises mean acceptance rate from
+57.6\% to 96.8\% and structural diversity by 123\% relative to a static
+baseline, using no coverage data at all. We additionally run the identical,
+unmodified pipeline against a second parser (parson) for five real
+iterations (3{,}000 sanitizer-instrumented executions); no crash was found,
+and we report this as a negative result, supported by manual review of the
+highest-risk code paths, rather than claim a bug that was not observed. We
+discuss how grammar-implementation mismatches -- for instance, duplicate
+JSON object keys accepted by one parser and rejected by the other under an
+identical grammar -- are themselves a source of fuzzing-relevant signal that
+a purely formal grammar cannot supply, and we release the full pipeline,
+harnesses, and reproducibility tooling.
