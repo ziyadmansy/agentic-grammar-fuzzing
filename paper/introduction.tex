@@ -1,3 +1,100 @@
 \section{Introduction}
 
-TODO
+Parsers are among the most exposed pieces of code in any system: they are
+the first code to touch untrusted input, and a memory-safety bug in a parser
+is directly attacker-controlled. Fuzzing -- automatically generating inputs
+and observing how a target handles them -- is the standard defense, but the
+two dominant families of fuzzer make different tradeoffs around structure and
+feedback. Coverage-guided, mutation-based fuzzers such as AFL discover
+interesting inputs by instrumenting the target and rewarding inputs that
+reach new code, but for a structured format such as JSON, random byte-level
+mutation of a seed corpus destroys syntactic validity far more often than it
+discovers it, so most of the fuzzer's budget is spent on inputs the parser
+rejects in its first few bytes. Grammar-based and property-based approaches
+invert this: a generator is written directly against a grammar or schema, so
+every input is syntactically valid (or deliberately near-valid) by
+construction, and the fuzzer's budget goes toward exploring the target's
+\emph{structural} handling of the format rather than re-discovering its
+lexer. Hypothesis, the property-based testing library we build on, is one
+such approach: a developer composes strategies -- generators for values of a
+given shape -- that can mirror a grammar directly.
+
+The gap is that a hand-written grammar-based generator is usually static. It
+is authored once, and unless a human revisits it, it keeps producing the
+same distribution of shapes for the rest of a campaign, no matter what the
+target's actual behavior turns out to be. Coverage-guided fuzzers close an
+analogous loop by using instrumentation feedback to reward and retain
+interesting inputs; grammar-based generators typically have nothing
+equivalent, because the whole appeal of generating from a grammar is that it
+does not require instrumenting or even recompiling the target. This is not
+a minor convenience: many realistic targets -- vendored third-party
+libraries pinned at a specific commit, closed-source or license-restricted
+binaries, embedded or cross-compiled parsers -- cannot be rebuilt with
+coverage instrumentation at all, or the instrumented build would not be
+representative of what actually ships. A feedback loop for grammar-based
+fuzzing is only useful in practice if it can run under exactly this
+constraint: black-box, with no coverage signal available.
+
+This paper asks a narrow, empirical question under that constraint: given
+only a formal grammar and the kind of feedback a black-box harness can
+actually produce -- whether an input was accepted or rejected, what the
+parser's own rejection reason was, and whether a sanitizer fired -- can a
+large language model (LLM) act as an effective iterative refiner of a
+grammar-based generator, without ever seeing which lines of the target ran?
+We answer it by building a complete pipeline around the cJSON parser
+(pinned at v1.7.19) and an ANTLR-derived JSON grammar: a sanitizer-
+instrumented harness classifies every generated input as accepted, rejected,
+or crashing; a campaign layer reduces a run of the harness to three
+observable, coverage-free proxies -- acceptance rate, the number of
+distinct structural shapes produced, and the number of distinct rejection
+reasons seen -- and a refinement loop feeds those proxies, together with the
+grammar text, back to an LLM each iteration and asks it to propose a revised
+Hypothesis strategy. Because the proposer is an LLM and its output is
+executable code, every proposal is statically validated -- AST-checked for
+disallowed imports and calls, and sanity-checked that it actually produces
+well-formed output -- before it is ever run against the target binary.
+
+We evaluate this pipeline with a seeded, five-run-per-arm comparison against
+a static baseline generator, and separately by reusing the entire pipeline,
+unmodified, against a second, independent parser (parson) to test whether
+the approach generalizes beyond one target and one set of grammar
+adaptations. Concretely, this paper contributes:
+
+\begin{itemize}
+  \item A black-box, coverage-free feedback design -- acceptance rate,
+    structural diversity, and rejection signatures -- shown sufficient to
+    steer LLM-driven refinement of a grammar-based generator without any
+    coverage instrumentation.
+  \item A pipeline that treats LLM-authored code as untrusted by
+    construction: every proposed generator is statically sandboxed and
+    behaviorally sanity-checked before it ever executes against a real
+    target, independent of which LLM produced it.
+  \item A seeded, reproducible, five-run-per-arm empirical comparison
+    showing that refinement raises mean acceptance rate from 57.6\% to
+    96.8\% and structural diversity by 123\% relative to a static baseline
+    on the same target, reported with explicit caveats about unequal
+    per-arm budgets and without claiming statistical significance.
+  \item A second, independently run target (parson), reusing every pipeline
+    component unchanged, including five real refinement iterations and an
+    honestly argued negative result -- no crash found across 3{,}000
+    sanitizer-instrumented executions -- supported by manual review of the
+    highest-risk code paths rather than left as an unexplained absence.
+  \item An empirical account of grammar-implementation mismatches across
+    both targets under one shared formal grammar -- for example, duplicate
+    JSON object keys accepted by cJSON and rejected outright by parson --
+    which we argue are themselves a source of fuzzing-relevant signal that
+    a purely formal grammar specification cannot supply on its own.
+  \item Reproducibility tooling for the generated-input stream specifically
+    (a seeding shim over Hypothesis's internal random state, per-run
+    manifests, and hash-identified harness binaries), together with an
+    explicit statement of what that reproducibility does and does not cover.
+\end{itemize}
+
+The rest of the paper is organized as follows. Section~\ref{sec:related-work}
+situates this work relative to coverage-guided, grammar-based, and
+LLM-assisted fuzzing. Section~\ref{sec:methodology} describes the pipeline,
+the proxy signal, and the sandboxing of LLM-proposed generators in detail.
+Section~\ref{sec:evaluation} reports the cJSON comparison and the parson
+bonus target. Section~\ref{sec:discussion} discusses limitations, threats to
+validity, and what the negative result on parson does and does not show.
+Section~\ref{sec:conclusion} concludes.
