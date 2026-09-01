@@ -38,6 +38,14 @@ Crashes / timeouts / signals & 0 & 0 & --- \\
 \end{tabular}
 \end{table}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/acceptance_comparison.pdf}
+\caption{Per-run acceptance rate, baseline vs.\ refined, cJSON (five seeded
+runs per arm). Every refined run exceeds every baseline run.}
+\label{fig:acceptance-comparison}
+\end{figure}
+
 \textbf{Unequal budgets.} Baseline runs execute 500 inputs on average;
 refined runs execute 1700, because the refinement loop ran more iterations
 per run on average. Every count-based quantity (accepted, rejected,
