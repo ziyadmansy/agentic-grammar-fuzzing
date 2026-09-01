@@ -87,9 +87,9 @@ run.
 \caption{parson: five real refinement iterations, 500 examples each.}
 \label{tab:parson-iterations}
 \small
-\begin{tabular}{lrrr}
+\begin{tabularx}{\textwidth}{c X r r}
 \toprule
-Iter.\ & Focus (abridged) & Accepted/Rejected & Fingerprints \\
+Iter.\ & Focus (abridged) & Acc./Rej.\ & Fingerprints \\
 \midrule
 1 & Grammar-seeded generator: recursion, numeric edge cases, duplicate keys, trailing garbage & 285 / 215 & 206/500 \\
 2 & Wide objects/arrays (up to 4000 keys) to hit rehash/resize paths unreached by iter.\ 1 & 341 / 159 & 273/500 \\
@@ -97,7 +97,7 @@ Iter.\ & Focus (abridged) & Accepted/Rejected & Fingerprints \\
 4 & Internal error-cleanup free path: structures valid until the final token & 85 / 415 & 214/500 \\
 5 & Combines iter.\ 4's free-path shapes with a sibling-cascade free case & 139 / 361 & 302/500 \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \textbf{Result.} No crash was found across all 3{,}000 sanitizer-instrumented
