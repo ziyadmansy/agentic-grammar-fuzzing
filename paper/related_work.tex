@@ -1,3 +1,71 @@
 \section{Related Work}
+\label{sec:related-work}
 
-TODO
+\paragraph{Coverage-guided fuzzing.}
+American Fuzzy Lop~\cite{zalewski2014afl} and its successor AFL++~\cite{fioraldi2020aflplusplus}
+popularized mutation-based, coverage-guided fuzzing: a target is
+instrumented to report which code ran, and the fuzzer retains and mutates
+inputs that reach new coverage. Man\`es et al.'s survey~\cite{manes2021fuzzing}
+gives a taxonomy of this and related approaches. Coverage-guided fuzzers are
+highly effective when instrumentation is available, but for a structured
+input format their byte-level mutations mostly produce syntactically invalid
+inputs that are rejected before any interesting code runs, and none of this
+family applies when the target cannot be recompiled with instrumentation --
+the setting this paper addresses.
+
+\paragraph{Grammar-based and generation-based fuzzing.}
+Generating inputs directly from a grammar, rather than mutating bytes, is a
+much older idea: Purdom's sentence generator~\cite{purdom1972sentence}
+produces short strings that exercise every grammar production, originally
+for testing and debugging parsers themselves. More recent tools combine a
+grammar with coverage feedback: Superion~\cite{wang2019superion} extends a
+greybox fuzzer with grammar-aware mutation operators so mutated inputs
+remain syntactically valid, and Nautilus~\cite{aschermann2019nautilus}
+similarly pairs a grammar-based generator with coverage-guided mutation to
+reach deeper parser states. Both still assume coverage instrumentation is
+available to decide which grammar-derived inputs to keep; our setting
+removes that assumption entirely; the only feedback available is the kind a
+black-box harness can itself produce, so the loop steers the grammar-based
+\emph{generator}, not a corpus of retained inputs.
+
+\paragraph{Property-based testing.}
+QuickCheck~\cite{claessen2000quickcheck} introduced property-based testing:
+a developer writes generators for values of a given shape and a property
+that should hold for all of them, and the tool searches for a
+counterexample. Hypothesis~\cite{maciver2019hypothesis}, which this work
+builds directly on, is a Python implementation of the same idea, with
+composable strategies that can mirror a formal grammar closely enough that
+our baseline generator is a near-direct translation of an ANTLR grammar. In
+this line of work the generator is authored once by a human and is not
+revised in response to how the target under test actually behaves; this
+paper automates exactly that revision step.
+
+\paragraph{LLMs for fuzzing and test generation.}
+LLMs have recently been used to generate or mutate fuzzing inputs directly.
+TitanFuzz~\cite{deng2023titanfuzz} uses an LLM to generate and mutate
+programs for fuzzing deep-learning library APIs, relying on the LLM's prior
+exposure to real usage examples of those APIs rather than a formal grammar.
+Fuzz4All~\cite{xia2024fuzz4all} generalizes this to arbitrary
+languages/systems by using an LLM both to synthesize a distilled input
+prompt from documentation and examples and to generate and mutate inputs
+from it. CodaMOSA~\cite{lemieux2023codamosa} takes a related but distinct
+approach for unit-test generation: search-based test generation runs until
+coverage plateaus, at which point an LLM is asked for example test cases to
+help the search escape the plateau -- i.e., the LLM is invoked \emph{because}
+coverage feedback is available and has stalled. Our setting differs from all
+three along the same axis: we assume no coverage signal is available at any
+point, only the parser's own accept/reject decision and sanitizer output,
+and the LLM's job is not to produce one-off inputs or test cases but to
+revise a reusable, executable \emph{generator} against a formal grammar it is
+also given directly, iterating on the same three coverage-free proxies each
+round.
+
+\paragraph{Positioning.} This paper sits at the intersection of the second
+and fourth lines above: like Superion and Nautilus, it uses a grammar to
+keep generated inputs structurally valid; unlike them, it has no coverage
+instrumentation to fall back on, and unlike TitanFuzz, Fuzz4All, and
+CodaMOSA, the LLM never sees coverage data, execution traces, or usage
+examples -- only the grammar text and the same three black-box proxies
+(acceptance rate, structural diversity, rejection signatures) a human
+maintaining a Hypothesis strategy by hand would have to reason about
+manually.

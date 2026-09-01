@@ -1,0 +1,181 @@
+\section{Methodology}
+\label{sec:methodology}
+
+\subsection{Research questions}
+This paper asks two questions. \textbf{RQ1:} using only black-box,
+coverage-free feedback, does LLM-guided refinement of a grammar-based
+generator improve that generator's acceptance rate and structural diversity
+relative to a static baseline, on a fixed target? \textbf{RQ2:} does the
+pipeline -- harness contract, proxy signal, refinement loop, and sandbox --
+generalize to a second, independently adapted target without modification?
+
+\subsection{Target, grammar, and harness}
+The primary target is cJSON, pinned at v1.7.19
+(commit \texttt{c859b25}). The grammar is the ANTLR grammars-v4 JSON
+grammar~\cite{antlr2024grammarsv4}, vendored unmodified. A thin C harness
+reads a candidate input from stdin and parses it with
+\texttt{cJSON\_ParseWithLengthOpts(..., require\_null\_terminated=1)}, the
+library's strictest entry point: it rejects any input with trailing bytes
+after a valid value, so an ``accepted'' input is one where the entire buffer
+is a single grammar-valid value, matching the grammar's
+\texttt{json : value EOF ;} production exactly. The library's more commonly
+used \texttt{cJSON\_Parse} entry point does not enforce full-buffer
+consumption and was deliberately not used, since it would silently accept
+inputs the grammar does not.
+
+Reconciling the formal grammar with the target's actual behavior surfaced
+three adaptations, each a genuine mismatch between what the grammar
+specifies and what the implementation does: (i) the grammar has no token for
+\texttt{NaN}/\texttt{Infinity}, matching cJSON's inability to produce or
+accept them, so generators exclude non-finite floats; (ii) cJSON accepts
+duplicate object keys, storing every entry in an internal linked list rather
+than rejecting or de-duplicating, even though the grammar is silent on
+duplicate keys -- this is treated as valid-but-underspecified territory, not
+a rejection case, and generators deliberately exercise it; (iii) the
+full-buffer-consumption requirement above is enforced by the harness's
+choice of entry point, not by the grammar itself. Section~\ref{sec:evaluation}
+reports the analogous set of adaptations found for the second target,
+parson, where two of the three go the opposite direction under the identical
+grammar.
+
+\subsection{Outcome classification}
+Every input is executed as a bounded subprocess (5-second default timeout)
+against a sanitizer-instrumented build (\texttt{-fsanitize=address,undefined}).
+The result is classified, in order: \texttt{timeout} if the process does not
+return within the bound; \texttt{signal:<name>} if it is killed by a fatal
+signal; \texttt{crash} if it exits with a non-zero return code or its
+stderr contains \texttt{AddressSanitizer} or \texttt{UndefinedBehaviorSanitizer}
+text; \texttt{accepted} if its stdout begins with \texttt{status=accepted};
+otherwise \texttt{rejected}. Timeouts are classified and reported alongside
+crashes rather than discarded, since an unbounded hang in a parser is a
+denial-of-service bug in its own right.
+
+\subsection{A coverage-free proxy signal}
+With no coverage instrumentation, refinement is steered by three signals
+computed purely from a campaign's classified outcomes:
+
+\begin{itemize}
+  \item \textbf{Acceptance rate} -- the fraction of inputs classified
+    \texttt{accepted}. A generator accepting close to 0\% of its own output
+    is testing only the rejection path, not the parser's structural
+    handling of valid input, and is flagged for correction.
+  \item \textbf{Structural diversity} -- the count of distinct
+    \emph{structural fingerprints} seen in a campaign. A fingerprint maps
+    each byte of an input to one of six symbols (the six structural
+    characters \texttt{\{\}[]:,} are kept literal, whitespace maps to
+    \texttt{\_}, ASCII digits map to \texttt{\#}, the double-quote maps to
+    \texttt{"}, and every other byte maps to \texttt{x}), concatenates the
+    result, and truncates it to 256 characters. Two inputs share a
+    fingerprint exactly when their first 256 bytes reduce to the same
+    positional shape string; the count of distinct fingerprints across a
+    campaign is used as a coverage-free proxy for how many different
+    grammar shapes a generator has actually produced. The 256-byte
+    truncation makes this proxy a lower bound on true shape diversity for
+    inputs longer than that, since two structurally different inputs that
+    agree on their first 256 bytes collapse to one fingerprint; this is a
+    deliberate accuracy/cost tradeoff and is stated as a limitation in
+    Section~\ref{sec:discussion}.
+  \item \textbf{Rejection signatures} -- the count of distinct parser
+    rejection messages and offsets seen, used to tell the proposer which
+    malformed shapes are already well covered versus unexplored.
+\end{itemize}
+
+These three numbers, plus outcome counts and unique input lengths, are the
+entire feedback surface exposed to the LLM each iteration; no coverage data,
+execution trace, or source excerpt is ever included in the prompt.
+
+\subsection{Refinement loop}
+Each iteration builds a prompt containing the grammar text and a summary of
+the previous iteration's campaign (outcome counts, unique input lengths,
+unique structural fingerprints, unique rejection signatures), and sends it
+to a proposer -- an LLM in the live configuration, or, for the parson
+generalization test, a human reasoning over the same summary and playing
+the identical role (Section~\ref{sec:evaluation}). The proposer must return
+a single Python function, \texttt{generated\_json}, decorated with
+Hypothesis's \texttt{@st.composite} and built from \texttt{st.*}
+combinators, so that recursive structure is expressed the same way a
+human-authored Hypothesis strategy would express it. The official run uses
+\texttt{gpt-4.1-mini} at temperature 0.2 as the proposer.
+
+\subsection{Sandboxing untrusted, LLM-authored code}
+Because the proposer's output is executable Python that this pipeline runs
+locally, every proposal passes through a validator
+(\texttt{load\_strategy}) before it ever touches the target binary. The
+validator first parses the proposal's AST and rejects it outright if it
+imports anything other than \texttt{hypothesis.strategies}, or if it calls
+\texttt{eval}, \texttt{exec}, \texttt{open}, \texttt{compile}, or
+\texttt{\_\_import\_\_} by name. The proposal is then executed with an
+otherwise ordinary Python builtin namespace, minus a short, explicit
+blocklist (\texttt{eval}, \texttt{exec}, \texttt{compile},
+\texttt{\_\_import\_\_}, \texttt{open}, \texttt{input}, \texttt{breakpoint},
+\texttt{exit}, \texttt{quit}, \texttt{help}, \texttt{globals},
+\texttt{locals}, \texttt{vars}, \texttt{getattr}, \texttt{setattr},
+\texttt{delattr}) -- ordinary helpers such as \texttt{ord}, \texttt{chr},
+\texttt{str}, \texttt{len}, and \texttt{range} remain available, so a
+proposal is free to use normal Python rather than being restricted to
+Hypothesis combinators alone. Finally, the resulting \texttt{generated\_json}
+must be callable and must produce a \texttt{bytes} value via
+\texttt{.example()}; a proposal that fails any of these checks is rejected
+and logged, and never reaches the harness. This is deliberately scoped as a
+filter against \emph{accidental} misuse of untrusted, LLM-authored code, not
+as a hardened security boundary: Python's object model can reach
+functionality beyond any blocklisted name (for instance, by walking
+\texttt{().\_\_class\_\_.\_\_base\_\_.\_\_subclasses\_\_()}), and closing
+that off would require process- or container-level isolation rather than
+name filtering. We report this limitation directly rather than implying a
+guarantee the design does not provide.
+
+\subsection{Crash triage and minimization}
+A sanitizer report is reduced to its \texttt{SUMMARY:} line and stack
+frames with addresses and source line numbers normalized out, then hashed
+into a 16-character signature; records sharing a signature are treated as
+one root cause. For each unique signature, Hypothesis's \texttt{find} is
+used to shrink a triggering input to a minimal byte string that still
+reproduces the same crash or timeout classification -- rather than simply
+keeping the first crash observed -- and the minimized input is re-run once,
+standalone, against the pinned build to verify it reproduces outside the
+shrinking process itself.
+
+\subsection{Reproducibility engineering}
+Hypothesis's \texttt{.example()} draws from a private internal random state
+that Python's own \texttt{random.seed()} does not reach, and separately
+orders its candidate batch with the module-level \texttt{random.shuffle}.
+Seeding only one of the two leaves the produced example stream
+non-reproducible across process invocations; a shim
+(\texttt{seeding.seed\_everything}) seeds both, which we verified gives
+byte-identical example streams across repeated processes on Hypothesis
+6.165.5 / CPython 3.14.7. Two documented, non-internal alternatives --
+\texttt{settings(derandomize=True)} and \texttt{global\_force\_seed} -- were
+rejected because both collapse a run's draws into repeats of a single small
+batch, which would change the generation algorithm itself rather than only
+fix its starting point. Because this shim depends on an internal
+implementation detail, the Hypothesis version is pinned in
+\texttt{requirements.txt} and the shim fails loudly rather than silently if
+the relied-upon attribute is renamed or removed in a future release. Every
+run additionally persists a manifest (seed, package versions, platform,
+model, feedback mode, CLI arguments) and a reproducibility report (compiler,
+harness SHA-256, exact command line, repository commit); the compiled
+harness binary itself is gitignored and host-compiled, so it is identified
+by content hash rather than assumed identical across machines. This
+reproducibility guarantee is scoped to the generated input stream only: it
+does not extend to LLM proposals themselves (temperature 0.2, no server-side
+seed), to wall-clock-dependent timeout classification, or to the harness
+binary's bit-for-bit identity across hosts and toolchains.
+
+\subsection{Experimental design}
+For RQ1, we run five independent, seeded trials (seeds 0--4) of a static
+baseline generator and five independent, seeded trials of the LLM-refined
+loop against the same pinned cJSON build, each trial consisting of up to
+five refinement iterations of up to 500 examples. We report acceptance
+rate, structural fingerprints, and rejection signatures per trial, and
+compare the two arms with a non-parametric two-sample test appropriate for
+five observations per arm without assuming a particular distribution
+(Section~\ref{sec:evaluation}); we do not assume, and do not claim, that
+count-based metrics are directly comparable between arms, since the two
+arms' trials execute different total numbers of inputs. For RQ2, we run the
+identical pipeline, entirely unmodified, against parson for five real
+iterations, with a human reasoning over each iteration's campaign summary
+in the proposer's role and every resulting proposal passing through the
+same \texttt{load\_strategy} validation and \texttt{run\_campaign} execution
+path a model's output would take; this substitutes for a live API call
+without altering any other part of the pipeline being tested.

@@ -6,12 +6,13 @@ parser, driven by an LLM that turns a formal ANTLR grammar into a composable
 refines it using feedback from previous runs — no coverage instrumentation,
 only sanitizers and parser-level signal.
 
-> **Beyond the assignment brief:** this repo also stands up a second,
+> **Self-initiated extension:** this repo also stands up a second,
 > independent target ([parson](https://github.com/kgabis/parson)) and runs the
-> full pipeline against it end-to-end. No LLM API key was used: each iteration's
-> strategy was authored by hand in the proposer's role and then validated and
-> executed through exactly the same `load_strategy`/`run_campaign` path a model's
-> output would take. See [Bonus: a second target, run for real (parson)](#bonus-a-second-target-run-for-real-parson)
+> full pipeline against it end-to-end, beyond the project's original scope.
+> No LLM API key was used: each iteration's strategy was authored by hand in
+> the proposer's role and then validated and executed through exactly the
+> same `load_strategy`/`run_campaign` path a model's output would take. See
+> [Bonus: a second target, run for real (parson)](#bonus-a-second-target-run-for-real-parson)
 > for the full writeup: grammar-adaptation findings, five real campaigns,
 > and an honestly-argued "why no crash" analysis.
 
@@ -190,8 +191,8 @@ PYTHONPATH=src .venv/bin/python scripts/make_report.py artifacts/baseline.jsonl
 ## Agentic refinement loop
 
 [`run_refinement_loop`](src/agentic_fuzzing/refinement.py) runs at most 5
-iterations of 500 examples each (matching the assignment's iteration and
-per-run bounds). Each iteration:
+iterations of 500 examples each (the project's fixed iteration and per-run
+budget). Each iteration:
 
 1. Builds a prompt containing the grammar text and a `CampaignSummary` of the
    previous iteration (outcome counts, unique input lengths, unique
@@ -440,16 +441,16 @@ from.
 
 ## Bonus: a second target, run for real (parson)
 
-> **This section was not required by the assignment.** Everything above
-> satisfies the brief on its own. What follows is additional, self-initiated
-> work: a second pinned target, a second harness, and five real (not
-> simulated) agentic-loop iterations, run specifically to see whether this
-> pipeline could turn up an actual memory-safety bug beyond the required
-> deliverable.
+> **This section goes beyond the project's original scope.** Everything
+> above stands on its own. What follows is additional, self-initiated work: a
+> second pinned target, a second harness, and five real (not simulated)
+> agentic-loop iterations, run specifically to see whether this pipeline
+> could turn up an actual memory-safety bug beyond the core deliverable.
 
-The assignment spec notes that a trial run on [parson](https://github.com/kgabis/parson)
-(JSON) went from 0 crashes to reliable crashes within 5 agentic-loop
-iterations. As a bonus, this repo stands up parson as a second target reusing
+A trial run on [parson](https://github.com/kgabis/parson) (JSON) was reported
+elsewhere to go from 0 crashes to reliable crashes within 5 agentic-loop
+iterations. As a self-initiated extension, this repo stands up parson as a
+second target, reusing
 every pipeline component unchanged (`runner`, `campaign`, `proposal`,
 `refinement`, `triage`, `minimize` are all format/target-agnostic — only a
 new harness and build script were needed), and runs the real refinement loop
@@ -500,15 +501,27 @@ time — found empirically and confirmed by inspection afterward):**
 
 Each iteration's `proposal.py` is a self-contained Hypothesis strategy built
 only from `st.*` combinators and string operators/methods — not
-`json.dumps`-then-serialize — because `proposal.py`'s sandbox strips ordinary
-Python builtins (`ord`, `chr`, `str`, `len`, `range`, ...) from the exec
-namespace, leaving only `st` and language operators available. This is a real
-gap in the current sandbox worth flagging: the refinement prompt never tells
-the LLM about this restriction, so a real LLM proposal using ordinary Python
-helper functions (which the assignment explicitly encourages) would very
-likely fail `load_strategy` with a `NameError` on the first `.example()`
-sanity check, not because the strategy is wrong but because the sandbox is
-stricter than documented.
+`json.dumps`-then-serialize — as a style choice for the hand-authored
+proposer role, not a sandbox constraint: `proposal.py`'s validator
+([`load_strategy`](src/agentic_fuzzing/proposal.py)) is a *blocklist*, not a
+whitelist — it AST-checks that the only import is `hypothesis.strategies`
+and that none of `eval`/`exec`/`open`/`compile`/`__import__` are called, then
+runs the proposal with every ordinary builtin available (`ord`, `chr`, `str`,
+`len`, `range`, ... are all present) except a short list of dangerous
+entry points (`eval`, `exec`, `compile`, `__import__`, `open`, `input`,
+`breakpoint`, `exit`, `quit`, `help`, `globals`, `locals`, `vars`,
+`getattr`, `setattr`, `delattr`). The code documents its own threat model
+honestly: this is a filter against *accidental* misuse of untrusted
+LLM-authored code, not a hardened security boundary — Python's object model
+can still reach dangerous functionality without naming any blocked builtin
+(e.g. walking `().__class__.__base__.__subclasses__()`), and closing that off
+for real would require process- or container-level isolation, not name
+filtering. (An earlier whitelist-based version of this sandbox did strip
+ordinary builtins and would have produced exactly the `NameError` failure
+mode described in an earlier draft of this section; it was replaced with the
+current blocklist before the parson runs below, since whitelisting
+individual "safe" names turned into unbounded whack-a-mole against ordinary
+Python.)
 
 **Result: no crash found across 3,000 real sanitizer-instrumented runs**
 (500 baseline + 5 × 500 agentic iterations, all built with
@@ -530,15 +543,13 @@ never iterates past the last successfully-added slot) — a defensible, if
 unglamorous, explanation for why targeted structural fuzzing within this
 budget, including five full agentic iterations split across both the parse
 and free paths, did not surface a memory-safety bug in this particular
-pinned commit. Per the assignment's guidance not to fabricate a crash or push
-past 5 iterations without asking first, this bonus run stops here. What's
-next with more budget: (1) fix the sandbox builtins gap above so a real LLM
-can be used for further iterations, (2) drive `json_value_free` through the
-public mutation API (`json_object_remove`/`json_array_remove`/`_replace_*`)
-rather than only the parse-then-free path the black-box harness can reach,
-and (3) if still nothing, try one of the less-audited libraries from the
-assignment's list (`inih`, `libcsv`) where a first pass is more likely to
-find something.
+pinned commit. In keeping with a policy against fabricating a crash or
+silently pushing past 5 iterations, this bonus run stops here. What's next
+with more budget: (1) drive `json_value_free` through the public mutation
+API (`json_object_remove`/`json_array_remove`/`_replace_*`) rather than only
+the parse-then-free path the black-box harness can reach, and (2) if still
+nothing, try one of the less-audited libraries (`inih`, `libcsv`) where a
+first pass is more likely to find something.
 
 ## Environment notes
 
