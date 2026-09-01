@@ -10,7 +10,10 @@ from openai import OpenAI
 
 from agentic_fuzzing.llm import OpenAIProposer
 from agentic_fuzzing.refinement import run_refinement_loop
+from agentic_fuzzing.reproducibility import build_report, write_report
 from agentic_fuzzing.seeding import build_manifest, resolved_arguments, seed_everything, write_manifest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def main() -> None:
@@ -39,6 +42,7 @@ def main() -> None:
     client = OpenAI(api_key=api_key)
     proposer = OpenAIProposer(client, model=args.model)
     arguments = resolved_arguments(args)
+    first_manifest: dict | None = None
 
     for run_index in range(args.runs):
         seed = args.seed + run_index
@@ -47,7 +51,9 @@ def main() -> None:
             raise SystemExit(f"{run_dir} already contains results; pass --overwrite to replace them")
         run_dir.mkdir(parents=True, exist_ok=True)
         # written before the run so a crashed run still carries its provenance
-        write_manifest(run_dir / "manifest.json", build_manifest(seed, arguments, model=args.model))
+        manifest = build_manifest(seed, arguments, model=args.model)
+        first_manifest = first_manifest or manifest
+        write_manifest(run_dir / "manifest.json", manifest)
 
         seed_everything(seed)
         print(f"== {run_dir} (seed={seed})")
@@ -65,6 +71,19 @@ def main() -> None:
             # mirror artifacts/parson-loop's layout, which persists summary.json per iteration
             summary_path = run_dir / f"iteration-{index}" / "summary.json"
             summary_path.write_text(json.dumps(summary.as_dict(), indent=2) + "\n", encoding="utf-8")
+
+    if first_manifest is not None:
+        report = build_report(
+            first_manifest,
+            experiment_type="refined",
+            executable=args.executable,
+            runs=args.runs,
+            examples_per_run=args.examples,
+            max_refinement_iterations=min(args.iterations, 5),
+            repo_root=REPO_ROOT,
+        )
+        for path in write_report(args.artifact_dir, report):
+            print(path)
 
 
 if __name__ == "__main__":

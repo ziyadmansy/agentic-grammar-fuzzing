@@ -15,7 +15,10 @@ from pathlib import Path
 from agentic_fuzzing.campaign import run_campaign
 from agentic_fuzzing.json_strategy import baseline_json, near_valid_json
 from agentic_fuzzing.refinement import summarize_records
+from agentic_fuzzing.reproducibility import build_report, write_report
 from agentic_fuzzing.seeding import build_manifest, resolved_arguments, seed_everything, write_manifest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def main() -> None:
@@ -48,15 +51,20 @@ def main() -> None:
     if args.artifact_dir is None:
         seed_everything(args.seed)
         counts = run_campaign(args.executable, input_stream(), args.output, args.examples, args.timeout)
-        manifest_path = write_manifest(
-            args.output.with_suffix(".manifest.json"),
-            build_manifest(args.seed, resolved_arguments(args)),
+        manifest = build_manifest(args.seed, resolved_arguments(args))
+        manifest_path = write_manifest(args.output.with_suffix(".manifest.json"), manifest)
+        report_paths = write_report(
+            args.output.parent,
+            _report(manifest, args, runs=1),
+            stem=f"{args.output.stem}.reproducibility",
         )
         print(dict(counts))
-        print(manifest_path)
+        for path in (manifest_path, *report_paths):
+            print(path)
         return
 
     arguments = resolved_arguments(args)
+    first_manifest: dict | None = None
     for run_index in range(args.runs):
         seed = args.seed + run_index
         run_dir = args.artifact_dir / f"run-{run_index + 1:02d}-seed-{seed:04d}"
@@ -65,7 +73,9 @@ def main() -> None:
         iteration_dir = run_dir / "iteration-1"
         iteration_dir.mkdir(parents=True, exist_ok=True)
         # written before the run so a crashed run still carries its provenance
-        write_manifest(run_dir / "manifest.json", build_manifest(seed, arguments))
+        manifest = build_manifest(seed, arguments)
+        first_manifest = first_manifest or manifest
+        write_manifest(run_dir / "manifest.json", manifest)
 
         seed_everything(seed)
         print(f"== {run_dir} (seed={seed})")
@@ -77,6 +87,23 @@ def main() -> None:
             json.dumps(summary.as_dict(), indent=2) + "\n", encoding="utf-8"
         )
         print(f"iteration-1: {summary.as_dict()}")
+
+    if first_manifest is not None:
+        for path in write_report(args.artifact_dir, _report(first_manifest, args, runs=args.runs)):
+            print(path)
+
+
+def _report(manifest: dict, args: argparse.Namespace, runs: int) -> dict:
+    return build_report(
+        manifest,
+        experiment_type="baseline",
+        executable=args.executable,
+        runs=runs,
+        examples_per_run=args.examples,
+        # a baseline has no refinement stage at all
+        max_refinement_iterations=None,
+        repo_root=REPO_ROOT,
+    )
 
 
 if __name__ == "__main__":
