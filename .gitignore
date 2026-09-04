@@ -5,8 +5,10 @@ __pycache__/
 .DS_Store
 .env
 
-# LaTeX build output (regenerate with: tectonic paper/main.tex)
+# LaTeX build output (regenerate with: tectonic paper/main.tex or
+# tectonic paper/main-icst-submission.tex)
 paper/main.pdf
+paper/main-icst-submission.pdf
 paper/*.aux
 paper/*.log
 paper/*.bbl
