@@ -1,0 +1,1 @@
+ProposalError: generated_json is not a Hypothesis strategy: cannot access free variable 'values' where it is not associated with a value in enclosing scope

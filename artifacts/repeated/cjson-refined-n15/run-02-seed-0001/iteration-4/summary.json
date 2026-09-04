@@ -1,0 +1,10 @@
+{
+  "counts": {
+    "rejected": 58,
+    "accepted": 442
+  },
+  "unique_lengths": 136,
+  "unique_structures": 231,
+  "unique_rejections": 46,
+  "total": 500
+}

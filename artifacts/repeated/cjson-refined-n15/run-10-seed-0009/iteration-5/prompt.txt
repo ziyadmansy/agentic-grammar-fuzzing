@@ -1,0 +1,44 @@
+You are refining a Hypothesis strategy for black-box JSON parser fuzzing.
+
+Grammar:
+grammar JSON;
+
+json : value EOF ;
+
+obj : '{' pair (',' pair)* '}' | '{' '}' ;
+
+pair : STRING ':' value ;
+
+arr : '[' value (',' value)* ']' | '[' ']' ;
+
+value
+    : STRING
+    | NUMBER
+    | obj
+    | arr
+    | 'true'
+    | 'false'
+    | 'null'
+    ;
+
+STRING : '"' (ESC | SAFECODEPOINT)* '"' ;
+
+fragment ESC : '\\' (["\\/bfnrt] | UNICODE) ;
+fragment UNICODE : 'u' HEX HEX HEX HEX ;
+fragment HEX : [0-9a-fA-F] ;
+fragment SAFECODEPOINT : ~["\\\u0000-\u001F] ;
+
+NUMBER : '-'? INT ('.' [0-9]+)? EXP? ;
+fragment INT : '0' | [1-9] [0-9]* ;
+fragment EXP : [Ee] [+-]? [0-9]+ ;
+
+WS : [ \t\n\r]+ -> skip ;
+
+Observed campaign metrics (from the last iteration that produced usable data):
+{"counts": {"accepted": 500}, "total": 500, "unique_lengths": 82, "unique_rejections": 0, "unique_structures": 173}
+
+Return only Python source defining `@st.composite def generated_json(draw) -> bytes`.
+Use bounded `st.recursive` or `@st.composite`, preserve valid and near-valid cases,
+and keep recursion and output sizes bounded. The campaign runs at most 500 examples
+per iteration. Do not use subprocesses, filesystem,
+network access, eval, exec, or coverage instrumentation.

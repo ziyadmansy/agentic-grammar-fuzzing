@@ -1,0 +1,23 @@
+{
+  "arguments": {
+    "artifact_dir": "artifacts/repeated/cjson-refined-n15",
+    "examples": "500",
+    "executable": "build/cjson_harness",
+    "feedback": "full",
+    "grammar": "grammar/JSON.g4",
+    "iterations": "5",
+    "model": "gpt-4.1-mini",
+    "overwrite": "False",
+    "runs": "15",
+    "seed": "0",
+    "timeout": "5.0"
+  },
+  "feedback_mode": "full",
+  "hypothesis_version": "6.165.5",
+  "model": "gpt-4.1-mini",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python_implementation": "CPython",
+  "python_version": "3.14.7 (main, Aug  5 2026, 10:29:49) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "seed": 10,
+  "timestamp": "2026-09-04T19:26:37.634887+00:00"
+}

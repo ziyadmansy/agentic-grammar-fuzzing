@@ -1,0 +1,149 @@
+{
+  "incomplete_runs": [],
+  "per_run": [
+    {
+      "acceptance_percentage": 98.6,
+      "accepted": 493,
+      "crashes": 0,
+      "encoding_errors": 7,
+      "executed": 500,
+      "iterations": 5,
+      "iterations_rejected": 4,
+      "iterations_with_data": 1,
+      "model": "gpt-4.1-mini",
+      "problems": [],
+      "rejected": 0,
+      "rejection_signatures": 0,
+      "run": "run-01-seed-0000",
+      "seed": 0,
+      "structural_fingerprints": 173,
+      "timestamp": "2026-09-04T19:58:10.130263+00:00"
+    },
+    {
+      "acceptance_percentage": 98.8,
+      "accepted": 988,
+      "crashes": 0,
+      "encoding_errors": 12,
+      "executed": 1000,
+      "iterations": 5,
+      "iterations_rejected": 3,
+      "iterations_with_data": 2,
+      "model": "gpt-4.1-mini",
+      "problems": [],
+      "rejected": 0,
+      "rejection_signatures": 0,
+      "run": "run-02-seed-0001",
+      "seed": 1,
+      "structural_fingerprints": 407,
+      "timestamp": "2026-09-04T19:59:32.577637+00:00"
+    },
+    {
+      "acceptance_percentage": 91.8,
+      "accepted": 1377,
+      "crashes": 0,
+      "encoding_errors": 32,
+      "executed": 1500,
+      "iterations": 5,
+      "iterations_rejected": 2,
+      "iterations_with_data": 3,
+      "model": "gpt-4.1-mini",
+      "problems": [],
+      "rejected": 91,
+      "rejection_signatures": 75,
+      "run": "run-03-seed-0002",
+      "seed": 2,
+      "structural_fingerprints": 702,
+      "timestamp": "2026-09-04T20:02:07.950746+00:00"
+    },
+    {
+      "acceptance_percentage": null,
+      "accepted": 0,
+      "crashes": 0,
+      "encoding_errors": 0,
+      "executed": 0,
+      "iterations": 5,
+      "iterations_rejected": 5,
+      "iterations_with_data": 0,
+      "model": "gpt-4.1-mini",
+      "problems": [],
+      "rejected": 0,
+      "rejection_signatures": 0,
+      "run": "run-04-seed-0003",
+      "seed": 3,
+      "structural_fingerprints": 0,
+      "timestamp": "2026-09-04T20:05:14.062899+00:00"
+    },
+    {
+      "acceptance_percentage": 96.467,
+      "accepted": 1447,
+      "crashes": 0,
+      "encoding_errors": 17,
+      "executed": 1500,
+      "iterations": 5,
+      "iterations_rejected": 2,
+      "iterations_with_data": 3,
+      "model": "gpt-4.1-mini",
+      "problems": [],
+      "rejected": 36,
+      "rejection_signatures": 32,
+      "run": "run-05-seed-0004",
+      "seed": 4,
+      "structural_fingerprints": 547,
+      "timestamp": "2026-09-04T20:06:01.675549+00:00"
+    }
+  ],
+  "runs_found": 5,
+  "runs_with_data": 4,
+  "source": "artifacts/repeated/ablation-counts-rejections",
+  "statistics": {
+    "acceptance_percentage": {
+      "max": 98.8,
+      "mean": 96.417,
+      "min": 91.8,
+      "runs": 4,
+      "stdev": 3.254
+    },
+    "accepted": {
+      "max": 1447.0,
+      "mean": 1076.25,
+      "min": 493.0,
+      "runs": 4,
+      "stdev": 438.13
+    },
+    "crashes": {
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "runs": 4,
+      "stdev": 0.0
+    },
+    "encoding_errors": {
+      "max": 32.0,
+      "mean": 17.0,
+      "min": 7.0,
+      "runs": 4,
+      "stdev": 10.801
+    },
+    "rejected": {
+      "max": 91.0,
+      "mean": 31.75,
+      "min": 0.0,
+      "runs": 4,
+      "stdev": 42.991
+    },
+    "rejection_signatures": {
+      "max": 75.0,
+      "mean": 26.75,
+      "min": 0.0,
+      "runs": 4,
+      "stdev": 35.528
+    },
+    "structural_fingerprints": {
+      "max": 702.0,
+      "mean": 457.25,
+      "min": 173.0,
+      "runs": 4,
+      "stdev": 224.559
+    }
+  }
+}

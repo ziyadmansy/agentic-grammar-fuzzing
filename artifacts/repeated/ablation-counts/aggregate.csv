@@ -1,0 +1,6 @@
+run,seed,model,timestamp,iterations,iterations_with_data,iterations_rejected,executed,accepted,rejected,encoding_errors,crashes,structural_fingerprints,rejection_signatures,acceptance_percentage,problems
+run-01-seed-0000,0,gpt-4.1-mini,2026-09-04T19:47:29.610899+00:00,5,2,3,1000,990,0,10,0,356,0,99.0,
+run-02-seed-0001,1,gpt-4.1-mini,2026-09-04T19:50:08.176037+00:00,5,0,5,0,0,0,0,0,0,0,,
+run-03-seed-0002,2,gpt-4.1-mini,2026-09-04T19:50:49.970213+00:00,5,3,2,1500,1483,0,17,0,642,0,98.867,
+run-04-seed-0003,3,gpt-4.1-mini,2026-09-04T19:53:22.317746+00:00,5,3,2,1500,1480,0,20,0,620,0,98.667,
+run-05-seed-0004,4,gpt-4.1-mini,2026-09-04T19:55:58.554163+00:00,5,2,3,1000,738,191,71,0,404,26,73.8,

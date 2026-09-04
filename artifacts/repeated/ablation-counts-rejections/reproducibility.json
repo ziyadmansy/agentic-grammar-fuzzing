@@ -1,0 +1,31 @@
+{
+  "command_line": "scripts/run_refinement.py --artifact-dir artifacts/repeated/ablation-counts-rejections --runs 5 --iterations 5 --examples 500 --seed 0 --model gpt-4.1-mini --feedback counts+rejections",
+  "compiler": "unknown",
+  "examples_per_run": 500,
+  "experiment_type": "refined",
+  "feedback_mode": "counts+rejections",
+  "git_branch": "main",
+  "git_commit": "3b8a8a63461ab9e13927e4394e05a2defd8a9c4c",
+  "harness_executable": "build/cjson_harness",
+  "harness_sha256": "893439104ccce288f366faa537d0bc4b7da8c17392460d347a763d0674688fcc",
+  "hypothesis_version": "6.165.5",
+  "max_refinement_iterations": 5,
+  "model": "gpt-4.1-mini",
+  "operating_system": "Darwin 25.5.0",
+  "parser": "cJSON",
+  "parser_commit": "c859b25da02955fef659d658b8f324b5cde87be3",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python_implementation": "CPython",
+  "python_version": "3.14.7 (main, Aug  5 2026, 10:29:49) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "runs": 5,
+  "sanitizer_flags": "-fsanitize=address,undefined",
+  "seed": 0,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "timestamp": "2026-09-04T19:58:10.130263+00:00"
+}

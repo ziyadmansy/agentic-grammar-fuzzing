@@ -1,0 +1,1 @@
+ProposalError: generated_json is not a Hypothesis strategy: characters() takes 0 positional arguments but 1 positional argument (and 2 keyword-only arguments) were given

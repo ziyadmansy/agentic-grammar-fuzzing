@@ -1,0 +1,1 @@
+ProposalError: generated_json is not a Hypothesis strategy: Expected one of Collection, SearchStrategy but got alphabet=<generator object generated_json.<locals>.<genexpr> at 0x11257d7d0> (type=generator)
