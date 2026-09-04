@@ -71,9 +71,10 @@ adaptations. Concretely, this paper contributes:
     target, independent of which LLM produced it.
   \item A seeded, reproducible, five-run-per-arm empirical comparison
     showing that refinement raises mean acceptance rate from 57.6\% to
-    96.8\% and structural diversity by 123\% relative to a static baseline
-    on the same target, reported with explicit caveats about unequal
-    per-arm budgets and without claiming statistical significance.
+    96.8\% relative to a static baseline on the same target. Structural
+    fingerprints and rejection signatures are reported as descriptive
+    signals, with explicit caveats that unequal per-arm budgets prevent
+    direct comparison of their aggregate counts.
   \item A second, independently run target (parson), reusing every pipeline
     component unchanged, including five real refinement iterations and an
     honestly argued negative result -- no crash found across 3{,}000

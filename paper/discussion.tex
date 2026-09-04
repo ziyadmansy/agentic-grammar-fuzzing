@@ -5,10 +5,11 @@
 The result in Section~\ref{sec:evaluation} says something narrower than ``the
 LLM makes fuzzing better'': across five seeded runs, refinement reliably
 moved a generator from producing mostly-invalid input toward producing
-mostly-valid, more structurally varied input, using only the three
-coverage-free proxies it was given. That is a real, statistically clean
-effect at the sample size tested, but it is worth being explicit about what
-it does not show. A 96.8\% mean acceptance rate is close to a ceiling, and a
+mostly-valid input, using only the three coverage-free proxies it was given.
+That acceptance-rate effect is real and statistically clean at the sample
+size tested -- the scale-free metric on which the two arms are directly
+comparable -- but it is worth being explicit about what it does not show.
+A 96.8\% mean acceptance rate is close to a ceiling, and a
 generator that always emits valid input has, by construction, stopped
 exercising the accept/reject boundary at all -- exactly the region the
 project's own \texttt{near\_valid\_json} baseline strategy exists to probe.
@@ -17,10 +18,12 @@ mostly testing the rejection path, which is the regime our baseline started
 in; it is not obviously desirable in the limit, where a generator that never
 produces a rejected or malformed input has traded away exactly the
 boundary-probing behavior that historically finds parser bugs. We did not
-observe this failure mode directly -- structural diversity also rose, and
-rejection signatures, while fewer, did not collapse to a single trivial
-case -- but the proxy signal as designed rewards acceptance rate
-monotonically and has no explicit floor protecting the near-valid regime.
+observe this failure mode directly -- within the refined arm, structural
+fingerprint counts also rose and rejection signatures did not collapse to a
+single trivial case, though these counts are descriptive rather than
+tested against the baseline (Section~\ref{sec:evaluation}) -- but the proxy
+signal as designed rewards acceptance rate monotonically and has no
+explicit floor protecting the near-valid regime.
 A refinement objective that also rewarded a target reject rate, rather than
 treating ``more accepted'' as strictly better without limit, would be a
 direct, low-cost improvement to the design evaluated here.
@@ -65,18 +68,20 @@ finding at all.
 256 bytes (Section~\ref{sec:methodology}), so it systematically undercounts
 diversity among longer, deeply nested inputs -- exactly the inputs a
 refinement loop chasing ``more diversity'' is most likely to produce over
-successive iterations, which could understate the true diversity gain we
-report.
+successive iterations, which could understate the true diversity signal
+reflected in the descriptive fingerprint counts we report.
 
 \textbf{Statistical validity.} $n{=}5$ runs per arm is small; the exact
 test used is appropriate for that size and makes no distributional
-assumption, but $p \approx 0.0079$ is a ceiling on how small an exact
-$p$-value five-per-arm observations can produce, not a measure of effect
-size on its own, and we report the actual acceptance-rate and
-diversity numbers in Table~\ref{tab:cjson-comparison} for that reason.
-Baseline and refined arms also executed different total numbers of inputs
-(Section~\ref{sec:evaluation}), so any reader extending this comparison with
-new count-based metrics should convert to a rate first.
+assumption, but $p \approx 0.0079$ on the acceptance-rate comparison is a
+ceiling on how small an exact $p$-value five-per-arm observations can
+produce, not a measure of effect size on its own, and we report the actual
+acceptance-rate numbers, alongside the descriptive fingerprint and
+rejection-signature counts, in Table~\ref{tab:cjson-comparison} for that
+reason. Baseline and refined arms also executed different total numbers of
+inputs (Section~\ref{sec:evaluation}), which is why only the scale-free
+acceptance rate is tested statistically; any reader extending this
+comparison with new count-based metrics should convert to a rate first.
 
 \textbf{External validity.} All results are on JSON, on two relatively
 small and independently well-tested C parsers, with one LLM
@@ -106,8 +111,8 @@ here; running it would isolate which of the three signals is doing the
 actual steering work. Second, adding an explicit reject-rate floor to the
 refinement prompt, motivated directly by Section~\ref{sec:discussion}'s
 concern about an acceptance-rate ceiling, could test whether it preserves
-boundary-probing behavior without sacrificing the diversity gain measured
-here. Third, and most directly relevant to the parson null result, driving
+boundary-probing behavior without sacrificing the acceptance-rate gain
+measured here. Third, and most directly relevant to the parson null result, driving
 \texttt{json\_value\_free} through parson's public mutation API rather than
 only the parse-then-free path would exercise object lifetime code this
 black-box harness cannot currently reach at all. Beyond these, comparing

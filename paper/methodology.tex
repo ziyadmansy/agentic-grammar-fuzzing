@@ -167,12 +167,10 @@ For RQ1, we run five independent, seeded trials (seeds 0--4) of a static
 baseline generator and five independent, seeded trials of the LLM-refined
 loop against the same pinned cJSON build, each trial consisting of up to
 five refinement iterations of up to 500 examples. We report acceptance
-rate, structural fingerprints, and rejection signatures per trial, and
-compare the two arms with a non-parametric two-sample test appropriate for
-five observations per arm without assuming a particular distribution
-(Section~\ref{sec:evaluation}); we do not assume, and do not claim, that
-count-based metrics are directly comparable between arms, since the two
-arms' trials execute different total numbers of inputs. For RQ2, we run the
+rate, structural fingerprints, and rejection signatures per trial. We compare
+the arms statistically only on acceptance rate, the scale-free outcome; the
+count-based metrics are retained as descriptive feedback signals because the
+two arms execute different total numbers of inputs. For RQ2, we run the
 identical pipeline, entirely unmodified, against parson for five real
 iterations, with a human reasoning over each iteration's campaign summary
 in the proposer's role and every resulting proposal passing through the

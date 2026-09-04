@@ -4,35 +4,33 @@
 \subsection{RQ1: cJSON, baseline versus LLM-refined}
 
 Table~\ref{tab:cjson-comparison} reports the five-seeded-run-per-arm
-comparison described in Section~\ref{sec:methodology}. Because every one of
-the five refined-arm runs exceeds every one of the five baseline-arm runs on
-both acceptance rate and structural fingerprints, and every refined-arm run
-falls below every baseline-arm run on rejection signatures, all three
-metrics exhibit complete rank separation between arms. For a two-sample
-comparison with five observations per arm and no ties, complete separation
-is the most extreme outcome an exact (permutation-based) Mann-Whitney U test
-can observe: $U{=}25$ (or, equivalently, $U{=}0$ from the other arm's
-perspective) out of a maximum of 25, giving an exact two-sided
-$p = 2/\binom{10}{5} \approx 0.0079$ for each of the three metrics. We report
-this as the exact result it is, not as evidence of an arbitrarily small
-true $p$-value: with $n{=}5$ per arm, $p \approx 0.0079$ is the smallest
-attainable exact $p$-value regardless of effect size, so it should be read
-as ``the strongest result this sample size can show,'' not as unusually
-strong evidence beyond what five runs per arm can support.
+comparison described in Section~\ref{sec:methodology}. Every refined-arm run
+has a higher acceptance rate than every baseline-arm run. Since acceptance
+rate is scale-free, this arm-level comparison remains interpretable despite
+the different numbers of executed inputs. The five observations have
+complete rank separation, giving an exact two-sided permutation
+\emph{p}-value of $2/\binom{10}{5} \approx 0.0079$ for this run-level
+comparison. With $n{=}5$ per arm, this is the smallest attainable exact
+\emph{p}-value for the design and should not be read as evidence of a
+precisely estimated population effect. Structural fingerprints and rejection
+signatures remain useful feedback signals, but their aggregate counts are
+not tested as arm-level effects because the refined runs execute more
+iterations.
 
 \begin{table}[t]
 \centering
 \caption{cJSON: baseline vs.\ LLM-refined, five seeded runs per arm (mean
-over runs). Exact two-sided Mann-Whitney $p \approx 0.0079$ for all three
-metrics (complete rank separation, $n{=}5$ per arm).}
+over runs). The exact two-sided permutation $p \approx 0.0079$ applies only
+to the scale-free acceptance-rate comparison; fingerprint and rejection
+signature totals are descriptive because budgets differ.}
 \label{tab:cjson-comparison}
 \begin{tabular}{lrrr}
 \toprule
 Metric & Baseline & Refined & Change \\
 \midrule
 Acceptance rate & 57.64\% & 96.77\% & $+$39.13 pp \\
-Structural fingerprints (sum/run) & 276.0 & 616.2 & $+$123.3\% \\
-Rejection signatures (sum/run) & 92.4 & 29.6 & $-$68.0\% \\
+Structural fingerprints (sum/run; descriptive) & 276.0 & 616.2 & --- \\
+Rejection signatures (sum/run; descriptive) & 92.4 & 29.6 & --- \\
 Crashes / timeouts / signals & 0 & 0 & --- \\
 \bottomrule
 \end{tabular}
