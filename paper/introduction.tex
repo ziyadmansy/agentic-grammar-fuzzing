@@ -42,8 +42,8 @@ parser's own rejection reason was, and whether a sanitizer fired -- can a
 large language model (LLM) act as an effective iterative refiner of a
 grammar-based generator, without ever seeing which lines of the target ran?
 We answer it by building a complete pipeline around the cJSON parser
-(pinned at v1.7.19) and an ANTLR-derived JSON grammar: a sanitizer-
-instrumented harness classifies every generated input as accepted, rejected,
+(pinned at v1.7.19) and an ANTLR-derived JSON grammar: a
+sanitizer-instrumented harness classifies every generated input as accepted, rejected,
 or crashing; a campaign layer reduces a run of the harness to three
 observable, coverage-free proxies -- acceptance rate, the number of
 distinct structural shapes produced, and the number of distinct rejection

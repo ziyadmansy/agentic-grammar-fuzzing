@@ -69,7 +69,7 @@ computed purely from a campaign's classified outcomes:
     each byte of an input to one of six symbols (the six structural
     characters \texttt{\{\}[]:,} are kept literal, whitespace maps to
     \texttt{\_}, ASCII digits map to \texttt{\#}, the double-quote maps to
-    \texttt{"}, and every other byte maps to \texttt{x}), concatenates the
+    \texttt{\textquotedbl}, and every other byte maps to \texttt{x}), concatenates the
     result, and truncates it to 256 characters. Two inputs share a
     fingerprint exactly when their first 256 bytes reduce to the same
     positional shape string; the count of distinct fingerprints across a
