@@ -19,7 +19,7 @@ fingerprints and rejection signatures remain useful feedback signals, but
 their aggregate counts are not tested as arm-level effects because the
 refined runs execute more iterations.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{cJSON: baseline vs.\ LLM-refined, fifteen seeded runs per arm (mean
 over runs). The exact two-sided permutation $p \approx 1.29\times10^{-8}$
@@ -36,7 +36,7 @@ Rejection signatures (sum/run; descriptive) & 87.8 & 24.1 & --- \\
 Crashes / timeouts / signals & 0 & 0 & --- \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \begin{figure}[t]
 \centering
@@ -91,7 +91,7 @@ implementation precisely.
 Table~\ref{tab:parson-iterations} summarizes the five iterations actually
 run.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{parson: five real refinement iterations, 500 examples each.}
 \label{tab:parson-iterations}
@@ -107,7 +107,7 @@ Iter.\ & Focus (abridged) & Acc./Rej.\ & Fingerprints \\
 5 & Combines iter.\ 4's free-path shapes with a sibling-cascade free case & 139 / 361 & 302/500 \\
 \bottomrule
 \end{tabularx}
-\end{table}
+\end{table*}
 
 \textbf{Result.} No crash was found across all 3{,}000 sanitizer-instrumented
 executions (500 baseline plus $5 \times 500$ refinement iterations), verified
@@ -144,7 +144,7 @@ usable trials per mode -- the same proposal-rejection behavior visible
 throughout RQ1's refined arm, just concentrated into a full trial in these
 smaller-sample runs rather than spread across otherwise-successful trials.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{cJSON refined arm under three feedback modes, four usable seeded
 trials per mode (one trial per mode excluded; see
@@ -161,7 +161,7 @@ Feedback mode & Acceptance rate & Fingerprints (sum/run) & Rej.\ signatures (sum
 \texttt{full} & 95.53\% & 503.5 & 34.8 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 All three modes raise acceptance rate to a broadly similar, near-ceiling
 level -- exposing only acceptance/rejection counts is already close to

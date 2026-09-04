@@ -1,6 +1,5 @@
-\documentclass[11pt]{article}
+\documentclass[conference]{IEEEtran}
 
-\usepackage[margin=1in]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{hyperref}
@@ -10,18 +9,26 @@
 \title{Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators}
 
 \author{
-Ziyad Mohammad Mansy Ibrahim \\
-\small \texttt{ziyadmohammad37@gmail.com} \\
-\small ORCID: \href{https://orcid.org/0009-0008-3499-3828}{0009-0008-3499-3828}
+\IEEEauthorblockN{Ziyad Mohammad Mansy Ibrahim}
+\IEEEauthorblockA{
+Independent Researcher \\
+\texttt{ziyadmohammad37@gmail.com} \\
+ORCID: \href{https://orcid.org/0009-0008-3499-3828}{0009-0008-3499-3828}
 }
-
-\date{}
+}
 
 \begin{document}
 
 \maketitle
 
+\begin{abstract}
 \input{abstract}
+\end{abstract}
+
+\begin{IEEEkeywords}
+fuzzing, grammar-based testing, property-based testing, large language models, black-box testing, software testing
+\end{IEEEkeywords}
+
 \input{introduction}
 \input{related_work}
 \input{methodology}
@@ -29,7 +36,7 @@ Ziyad Mohammad Mansy Ibrahim \\
 \input{discussion}
 \input{conclusion}
 
-\bibliographystyle{plain}
+\bibliographystyle{IEEEtran}
 \bibliography{references}
 
 \end{document}
