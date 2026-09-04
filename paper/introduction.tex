@@ -54,11 +54,12 @@ executable code, every proposal is statically validated -- AST-checked for
 disallowed imports and calls, and sanity-checked that it actually produces
 well-formed output -- before it is ever run against the target binary.
 
-We evaluate this pipeline with a seeded, five-run-per-arm comparison against
-a static baseline generator, and separately by reusing the entire pipeline,
-unmodified, against a second, independent parser (parson) to test whether
-the approach generalizes beyond one target and one set of grammar
-adaptations. Concretely, this paper contributes:
+We evaluate this pipeline with a seeded, fifteen-run-per-arm comparison
+against a static baseline generator; separately, by reusing the entire
+pipeline, unmodified, against a second, independent parser (parson) to test
+whether the approach generalizes beyond one target and one set of grammar
+adaptations; and with a smaller ablation over which subset of the proxy
+signal is exposed to the proposer. Concretely, this paper contributes:
 
 \begin{itemize}
   \item A black-box, coverage-free feedback design -- acceptance rate,
@@ -69,17 +70,25 @@ adaptations. Concretely, this paper contributes:
     construction: every proposed generator is statically sandboxed and
     behaviorally sanity-checked before it ever executes against a real
     target, independent of which LLM produced it.
-  \item A seeded, reproducible, five-run-per-arm empirical comparison
-    showing that refinement raises mean acceptance rate from 57.6\% to
-    96.8\% relative to a static baseline on the same target. Structural
-    fingerprints and rejection signatures are reported as descriptive
-    signals, with explicit caveats that unequal per-arm budgets prevent
-    direct comparison of their aggregate counts.
+  \item A seeded, reproducible, fifteen-run-per-arm empirical comparison
+    showing that refinement raises mean acceptance rate from 58.2\% to
+    97.1\% relative to a static baseline on the same target, with complete
+    rank separation between arms. Structural fingerprints and rejection
+    signatures are reported as descriptive signals, with explicit caveats
+    that unequal per-arm budgets prevent direct comparison of their
+    aggregate counts.
   \item A second, independently run target (parson), reusing every pipeline
     component unchanged, including five real refinement iterations and an
     honestly argued negative result -- no crash found across 3{,}000
     sanitizer-instrumented executions -- supported by manual review of the
     highest-risk code paths rather than left as an unexplained absence.
+  \item A feedback-signal ablation isolating which subset of the proxy
+    signal drives the improvement: exposing only acceptance/rejection
+    counts, counts plus rejection signatures, or the full signal all raise
+    acceptance rate by a broadly similar amount, while the full signal
+    preserves visibly more rejection-signature diversity than counts alone
+    -- a small-sample (four runs per condition), descriptive result, not a
+    tested effect.
   \item An empirical account of grammar-implementation mismatches across
     both targets under one shared formal grammar -- for example, duplicate
     JSON object keys accepted by cJSON and rejected outright by parson --

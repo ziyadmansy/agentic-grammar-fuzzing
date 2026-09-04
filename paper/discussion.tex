@@ -3,13 +3,13 @@
 
 \subsection{Interpreting the effect on cJSON}
 The result in Section~\ref{sec:evaluation} says something narrower than ``the
-LLM makes fuzzing better'': across five seeded runs, refinement reliably
+LLM makes fuzzing better'': across fifteen seeded runs, refinement reliably
 moved a generator from producing mostly-invalid input toward producing
 mostly-valid input, using only the three coverage-free proxies it was given.
 That acceptance-rate effect is real and statistically clean at the sample
 size tested -- the scale-free metric on which the two arms are directly
 comparable -- but it is worth being explicit about what it does not show.
-A 96.8\% mean acceptance rate is close to a ceiling, and a
+A 97.1\% mean acceptance rate is close to a ceiling, and a
 generator that always emits valid input has, by construction, stopped
 exercising the accept/reject boundary at all -- exactly the region the
 project's own \texttt{near\_valid\_json} baseline strategy exists to probe.
@@ -71,11 +71,11 @@ refinement loop chasing ``more diversity'' is most likely to produce over
 successive iterations, which could understate the true diversity signal
 reflected in the descriptive fingerprint counts we report.
 
-\textbf{Statistical validity.} $n{=}5$ runs per arm is small; the exact
-test used is appropriate for that size and makes no distributional
-assumption, but $p \approx 0.0079$ on the acceptance-rate comparison is a
-ceiling on how small an exact $p$-value five-per-arm observations can
-produce, not a measure of effect size on its own, and we report the actual
+\textbf{Statistical validity.} $n{=}15$ runs per arm is still modest; the
+exact test used is appropriate for that size and makes no distributional
+assumption, but $p \approx 1.29\times10^{-8}$ on the acceptance-rate
+comparison is a ceiling on how small an exact $p$-value fifteen-per-arm
+observations can produce, not a measure of effect size on its own, and we report the actual
 acceptance-rate numbers, alongside the descriptive fingerprint and
 rejection-signature counts, in Table~\ref{tab:cjson-comparison} for that
 reason. Baseline and refined arms also executed different total numbers of
@@ -103,20 +103,35 @@ not proposed as a replacement for that setting, only as an option for the
 black-box one.
 
 \subsection{Future work}
-Three extensions are direct and low-cost given the existing infrastructure.
-First, the pipeline already supports an ablation over which subset of the
-proxy signal is exposed to the proposer (\texttt{counts},
-\texttt{counts+rejections}, or \texttt{full}) but this was not evaluated
-here; running it would isolate which of the three signals is doing the
-actual steering work. Second, adding an explicit reject-rate floor to the
-refinement prompt, motivated directly by Section~\ref{sec:discussion}'s
-concern about an acceptance-rate ceiling, could test whether it preserves
+Several extensions are direct given the existing infrastructure. First, the
+feedback-signal ablation in Section~\ref{sec:evaluation-ablation} was run at
+a small scale (four usable trials per mode) and its rejection-signature
+finding is reported descriptively for that reason; a larger-sample
+replication is the natural next step to establish whether the pattern we
+observed holds statistically. Second, adding an explicit reject-rate floor
+to the refinement prompt, motivated directly by this section's concern about
+an acceptance-rate ceiling and now further motivated by the ablation's
+rejection-signature pattern, could test whether it preserves
 boundary-probing behavior without sacrificing the acceptance-rate gain
 measured here. Third, and most directly relevant to the parson null result, driving
 \texttt{json\_value\_free} through parson's public mutation API rather than
 only the parse-then-free path would exercise object lifetime code this
-black-box harness cannot currently reach at all. Beyond these, comparing
-against an existing external fuzzer under an equalized time or execution
-budget, rather than only against this project's own static baseline, is the
-most direct way to situate the magnitude of the cJSON result against prior
-work.
+black-box harness cannot currently reach at all. Fourth, comparing against
+an existing external fuzzer under an equalized time or execution budget,
+rather than only against this project's own static baseline, is the most
+direct way to situate the magnitude of the cJSON result against prior work.
+
+Two further extensions are larger in scope and deliberately left for future
+work rather than attempted here. One is broadening beyond a second
+same-language, same-format target: a third C JSON parser would only weakly
+extend the generalization claim already established by parson, whereas a
+target in a different format, or a memory-safe language where a
+``crash'' oracle must be redefined around uncaught exceptions and API
+contract violations rather than sanitizer output -- for instance, JSON
+deserialization in a Dart/Flutter mobile application -- would test
+generalization along a materially different axis than implementation alone.
+The other is applying this pipeline to a live, running mobile or server
+application rather than a bounded harness process, which would require
+redesigning the outcome-classification step in
+Section~\ref{sec:methodology} around that environment's own failure
+signals.

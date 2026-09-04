@@ -14,13 +14,18 @@ observable proxy signals -- acceptance rate, the structural diversity of the
 shapes produced, and the distinct rejection signatures seen -- asking it to
 propose a revised generator. Every proposal is statically sandboxed
 (AST-checked, import-restricted) and validated before it ever touches the
-target binary. Across five independent, seeded runs of five refinement
-iterations each, LLM-guided refinement raises mean acceptance rate from
-57.6\% to 96.8\% relative to a static baseline, using no coverage data at
-all. Structural fingerprints and rejection signatures are reported as
+target binary. Across fifteen independent, seeded runs of up to five
+refinement iterations each, LLM-guided refinement raises mean acceptance
+rate from 58.2\% to 97.1\% relative to a static baseline, using no coverage
+data at all. Structural fingerprints and rejection signatures are reported as
 descriptive signals; because the refined arm executes more iterations, their
-aggregate counts are not treated as like-for-like effects. We additionally
-run the identical, unmodified pipeline against a second parser (parson) for five real
+aggregate counts are not treated as like-for-like effects. A follow-up
+ablation over which subset of this feedback the proposer sees -- counts
+alone, counts with rejection signatures, or the full signal -- finds
+acceptance-rate gains are broadly similar across the three conditions, with
+full feedback preserving more rejection-signature diversity than counts
+alone (four usable runs per condition; reported descriptively, not tested).
+We additionally run the identical, unmodified pipeline against a second parser (parson) for five real
 iterations (3{,}000 sanitizer-instrumented executions); no crash was found,
 and we report this as a negative result, supported by manual review of the
 highest-risk code paths, rather than claim a bug that was not observed. We

@@ -3,34 +3,36 @@
 
 \subsection{RQ1: cJSON, baseline versus LLM-refined}
 
-Table~\ref{tab:cjson-comparison} reports the five-seeded-run-per-arm
-comparison described in Section~\ref{sec:methodology}. Every refined-arm run
-has a higher acceptance rate than every baseline-arm run. Since acceptance
-rate is scale-free, this arm-level comparison remains interpretable despite
-the different numbers of executed inputs. The five observations have
-complete rank separation, giving an exact two-sided permutation
-\emph{p}-value of $2/\binom{10}{5} \approx 0.0079$ for this run-level
-comparison. With $n{=}5$ per arm, this is the smallest attainable exact
-\emph{p}-value for the design and should not be read as evidence of a
-precisely estimated population effect. Structural fingerprints and rejection
-signatures remain useful feedback signals, but their aggregate counts are
-not tested as arm-level effects because the refined runs execute more
-iterations.
+Table~\ref{tab:cjson-comparison} reports the fifteen-seeded-run-per-arm
+comparison described in Section~\ref{sec:methodology} -- an extension of an
+initial five-run-per-arm pilot to a larger sample, run identically. Every
+refined-arm run has a higher acceptance rate than every baseline-arm run.
+Since acceptance rate is scale-free, this arm-level comparison remains
+interpretable despite the different numbers of executed inputs. All fifteen
+observations have complete rank separation, giving an exact two-sided
+permutation \emph{p}-value of $2/\binom{30}{15} \approx 1.29\times10^{-8}$
+for this run-level comparison. This is the smallest attainable exact
+\emph{p}-value for a design with $n{=}15$ per arm, and, as with the smaller
+pilot, should be read as the strongest separation this design can report
+rather than as a precisely estimated population effect. Structural
+fingerprints and rejection signatures remain useful feedback signals, but
+their aggregate counts are not tested as arm-level effects because the
+refined runs execute more iterations.
 
 \begin{table}[t]
 \centering
-\caption{cJSON: baseline vs.\ LLM-refined, five seeded runs per arm (mean
-over runs). The exact two-sided permutation $p \approx 0.0079$ applies only
-to the scale-free acceptance-rate comparison; fingerprint and rejection
-signature totals are descriptive because budgets differ.}
+\caption{cJSON: baseline vs.\ LLM-refined, fifteen seeded runs per arm (mean
+over runs). The exact two-sided permutation $p \approx 1.29\times10^{-8}$
+applies only to the scale-free acceptance-rate comparison; fingerprint and
+rejection signature totals are descriptive because budgets differ.}
 \label{tab:cjson-comparison}
 \begin{tabular}{lrrr}
 \toprule
 Metric & Baseline & Refined & Change \\
 \midrule
-Acceptance rate & 57.64\% & 96.77\% & $+$39.13 pp \\
-Structural fingerprints (sum/run; descriptive) & 276.0 & 616.2 & --- \\
-Rejection signatures (sum/run; descriptive) & 92.4 & 29.6 & --- \\
+Acceptance rate & 58.21\% & 97.07\% & $+$38.86 pp \\
+Structural fingerprints (sum/run; descriptive) & 274.5 & 598.2 & --- \\
+Rejection signatures (sum/run; descriptive) & 87.8 & 24.1 & --- \\
 Crashes / timeouts / signals & 0 & 0 & --- \\
 \bottomrule
 \end{tabular}
@@ -39,23 +41,24 @@ Crashes / timeouts / signals & 0 & 0 & --- \\
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/acceptance_comparison.pdf}
-\caption{Per-run acceptance rate, baseline vs.\ refined, cJSON (five seeded
-runs per arm). Every refined run exceeds every baseline run.}
+\caption{Per-run acceptance rate, baseline vs.\ refined, cJSON (fifteen
+seeded runs per arm). Every refined run exceeds every baseline run.}
 \label{fig:acceptance-comparison}
 \end{figure}
 
 \textbf{Unequal budgets.} Baseline runs execute 500 inputs on average;
-refined runs execute 1700, because the refinement loop ran more iterations
-per run on average. Every count-based quantity (accepted, rejected,
-fingerprints, signatures as raw totals rather than rates) therefore scales
-with a budget that differs between arms and is not directly comparable;
-acceptance rate is scale-free and unaffected by this. We report the
-budget-sensitive metrics above as \emph{sums over a run's iterations}
-specifically so the comparison is transparent about this rather than implying
-parity.
+refined runs execute 1{,}533 on average, because the refinement loop ran
+more iterations per run on average and some iterations end early on a
+rejected LLM proposal (Section~\ref{sec:evaluation-ablation}). Every
+count-based quantity (accepted, rejected, fingerprints, signatures as raw
+totals rather than rates) therefore scales with a budget that differs
+between arms and is not directly comparable; acceptance rate is scale-free
+and unaffected by this. We report the budget-sensitive metrics above as
+\emph{sums over a run's iterations} specifically so the comparison is
+transparent about this rather than implying parity.
 
 \textbf{No crashes in either arm.} Zero sanitizer crashes, timeouts, or
-fatal signals occurred in either arm across all ten runs. The effect
+fatal signals occurred in either arm across all thirty runs. The effect
 measured here is therefore on generator quality -- validity and structural
 diversity -- not on vulnerability discovery in cJSON; we do not claim or
 imply that refinement found, or was likely to find, a memory-safety bug in
@@ -127,3 +130,52 @@ internal free paths but not parson's public mutation API
 (\texttt{json\_object\_remove}, \texttt{json\_array\_remove}, and the
 \texttt{\_replace\_*} family), is a bounded search, and we do not claim more
 than that bound supports.
+
+\subsection{RQ3: which feedback signal drives the improvement}
+\label{sec:evaluation-ablation}
+
+Table~\ref{tab:ablation} reports the feedback-signal ablation described in
+Section~\ref{sec:methodology}: the same refined-arm recipe run under each of
+the three feedback modes, five seeded trials (seeds 0--4) per mode. In one
+trial per mode, all five refinement iterations produced an LLM proposal that
+failed sandbox validation (Section~\ref{sec:methodology}), leaving that
+trial with no executed inputs; these three trials are excluded, leaving four
+usable trials per mode -- the same proposal-rejection behavior visible
+throughout RQ1's refined arm, just concentrated into a full trial in these
+smaller-sample runs rather than spread across otherwise-successful trials.
+
+\begin{table}[t]
+\centering
+\caption{cJSON refined arm under three feedback modes, four usable seeded
+trials per mode (one trial per mode excluded; see
+Section~\ref{sec:evaluation-ablation}). Descriptive only: with $n{=}4$ per
+condition and no separation between conditions, no significance test is
+reported or implied.}
+\label{tab:ablation}
+\begin{tabular}{lrrr}
+\toprule
+Feedback mode & Acceptance rate & Fingerprints (sum/run) & Rej.\ signatures (sum/run) \\
+\midrule
+\texttt{counts} & 92.58\% & 505.5 & 6.5 \\
+\texttt{counts+rejections} & 96.42\% & 457.3 & 26.8 \\
+\texttt{full} & 95.53\% & 503.5 & 34.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All three modes raise acceptance rate to a broadly similar, near-ceiling
+level -- exposing only acceptance/rejection counts is already close to
+sufficient for that specific objective, and the per-trial acceptance rates
+across modes overlap (Table~\ref{tab:ablation}), so we do not claim any mode
+is statistically distinguishable from another on this metric at $n{=}4$.
+The one pattern worth reporting descriptively is rejection-signature
+diversity, which increases monotonically with how much of the signal the
+proposer sees: \texttt{counts} alone, with no visibility into which
+rejection shapes are already covered, produces under a fifth of the
+distinct rejection signatures that \texttt{full} feedback does, consistent
+with -- though not proof of -- the concern raised in
+Section~\ref{sec:discussion} that a proposer optimizing acceptance rate
+without visibility into rejection diversity has less reason to keep
+producing malformed, boundary-probing input. At four trials per condition,
+this is a suggestive, small-sample result, not a tested effect, and we
+report it as exactly that.

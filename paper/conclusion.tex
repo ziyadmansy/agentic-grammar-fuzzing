@@ -4,13 +4,17 @@
 We asked whether an LLM, given only a formal grammar and the feedback a
 black-box harness can actually produce -- acceptance rate, structural
 diversity, and rejection signatures, with no coverage instrumentation at
-all -- can iteratively refine a grammar-based fuzzing generator. Across five
-seeded runs against a pinned cJSON build, it reliably can: mean acceptance
-rate rose from 57.6\% to 96.8\% relative to a static baseline, with complete
-rank separation between arms in this scale-free outcome. Structural
-fingerprints and rejection signatures were useful within-campaign feedback
-signals, but their aggregate counts are not treated as cross-arm effects
-because the arms used different budgets. Reusing the same
+all -- can iteratively refine a grammar-based fuzzing generator. Across
+fifteen seeded runs against a pinned cJSON build, it reliably can: mean
+acceptance rate rose from 58.2\% to 97.1\% relative to a static baseline,
+with complete rank separation between arms in this scale-free outcome.
+Structural fingerprints and rejection signatures were useful within-campaign
+feedback signals, but their aggregate counts are not treated as cross-arm
+effects because the arms used different budgets. A feedback-signal ablation
+found that acceptance-rate gains hold up under a sparser signal than the
+full one, but that the full signal preserves more rejection-signature
+diversity -- a small-sample, descriptive finding that motivates, without yet
+proving, an explicit reject-rate objective as future work. Reusing the same
 pipeline, unmodified, against a second, independently adapted target
 (parson) confirmed the mechanics generalize across targets, while five real
 refinement iterations and 3{,}000 sanitizer-instrumented executions found no

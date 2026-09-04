@@ -2,12 +2,16 @@
 \label{sec:methodology}
 
 \subsection{Research questions}
-This paper asks two questions. \textbf{RQ1:} using only black-box,
+This paper asks three questions. \textbf{RQ1:} using only black-box,
 coverage-free feedback, does LLM-guided refinement of a grammar-based
 generator improve that generator's acceptance rate and structural diversity
 relative to a static baseline, on a fixed target? \textbf{RQ2:} does the
 pipeline -- harness contract, proxy signal, refinement loop, and sandbox --
 generalize to a second, independently adapted target without modification?
+\textbf{RQ3:} of the three coverage-free proxies exposed to the proposer,
+does the specific subset shown -- counts alone, counts with rejection
+signatures, or the full signal -- change how effectively refinement raises
+acceptance rate?
 
 \subsection{Target, grammar, and harness}
 The primary target is cJSON~\cite{gamble2024cjson}, pinned at v1.7.19
@@ -51,6 +55,7 @@ crashes rather than discarded, since an unbounded hang in a parser is a
 denial-of-service bug in its own right.
 
 \subsection{A coverage-free proxy signal}
+\label{sec:proxy-signal}
 With no coverage instrumentation, refinement is steered by three signals
 computed purely from a campaign's classified outcomes:
 
@@ -163,8 +168,8 @@ seed), to wall-clock-dependent timeout classification, or to the harness
 binary's bit-for-bit identity across hosts and toolchains.
 
 \subsection{Experimental design}
-For RQ1, we run five independent, seeded trials (seeds 0--4) of a static
-baseline generator and five independent, seeded trials of the LLM-refined
+For RQ1, we run fifteen independent, seeded trials (seeds 0--14) of a static
+baseline generator and fifteen independent, seeded trials of the LLM-refined
 loop against the same pinned cJSON build, each trial consisting of up to
 five refinement iterations of up to 500 examples. We report acceptance
 rate, structural fingerprints, and rejection signatures per trial. We compare
@@ -176,4 +181,12 @@ iterations, with a human reasoning over each iteration's campaign summary
 in the proposer's role and every resulting proposal passing through the
 same \texttt{load\_strategy} validation and \texttt{run\_campaign} execution
 path a model's output would take; this substitutes for a live API call
-without altering any other part of the pipeline being tested.
+without altering any other part of the pipeline being tested. For RQ3, we
+repeat the RQ1 refined-arm recipe under each of the three feedback modes in
+Section~\ref{sec:proxy-signal} (\texttt{counts}, \texttt{counts+rejections},
+\texttt{full}), five seeded trials (seeds 0--4) per mode against the same
+cJSON build. In one trial per mode, every one of the five iterations
+produced an LLM proposal that failed sandbox validation, leaving that trial
+with no executed inputs; following the same
+\texttt{iterations\_with\_data} convention used throughout, these three
+trials are excluded, leaving four usable trials per mode.
