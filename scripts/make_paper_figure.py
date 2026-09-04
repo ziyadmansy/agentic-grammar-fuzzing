@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Render the paper's baseline-vs-refined acceptance-rate comparison figure.
 
-Reads only artifacts/final/{baseline,refined}/aggregate.json (never
-results.jsonl, and imports no fuzzing code), matching the read-only
+Reads only <baseline-dir>/aggregate.json and <refined-dir>/aggregate.json
+(never results.jsonl, and imports no fuzzing code), matching the read-only
 convention of scripts/make_figures.py, and writes
-paper/figures/acceptance_comparison.{png,pdf}.
+paper/figures/acceptance_comparison.{png,pdf}. Defaults to
+artifacts/final/{baseline,refined}, the original five-seed comparison; pass
+--baseline-dir/--refined-dir to render a different arm pair (e.g. the
+fifteen-seed artifacts/repeated/cjson-{baseline,refined}-n15 comparison).
 """
 
+import argparse
 import json
 from pathlib import Path
 
@@ -37,26 +41,31 @@ STYLE = {
 }
 
 
-def per_run_acceptance(arm: str) -> list[float]:
-    data = json.loads((ROOT / "artifacts" / "final" / arm / "aggregate.json").read_text())
+def per_run_acceptance(directory: Path) -> list[float]:
+    data = json.loads((directory / "aggregate.json").read_text())
     return [run["acceptance_percentage"] for run in data["per_run"]]
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--baseline-dir", type=Path, default=ROOT / "artifacts" / "final" / "baseline")
+    parser.add_argument("--refined-dir", type=Path, default=ROOT / "artifacts" / "final" / "refined")
+    args = parser.parse_args()
+
     plt.rcParams.update(STYLE)
-    baseline = per_run_acceptance("baseline")
-    refined = per_run_acceptance("refined")
+    baseline = per_run_acceptance(args.baseline_dir)
+    refined = per_run_acceptance(args.refined_dir)
     n = len(baseline)
     assert n == len(refined)
 
     x = range(1, n + 1)
     width = 0.35
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(8.5, 3.2) if n > 8 else (5.5, 3.2))
     ax.bar([i - width / 2 for i in x], baseline, width, label="Baseline", color="0.65", edgecolor="0.2")
     ax.bar([i + width / 2 for i in x], refined, width, label="Refined", color="0.2", edgecolor="0.2")
     ax.set_xticks(list(x))
-    ax.set_xticklabels([f"seed {i - 1}" for i in x])
-    ax.set_xlabel("Run")
+    ax.set_xticklabels([f"{i - 1}" for i in x])
+    ax.set_xlabel("Run (seed)")
     ax.set_ylabel("Acceptance rate (%)")
     ax.set_ylim(0, 105)
     ax.set_title("cJSON acceptance rate: baseline vs. LLM-refined, per run")
