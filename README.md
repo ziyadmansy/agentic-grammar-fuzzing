@@ -389,52 +389,103 @@ strategies and report generator.
 
 ## Results so far
 
-**Final result: a seeded, 5-run-per-arm comparison of the baseline generator
-against the LLM-refined loop**, both run against the pinned cJSON build with
-`-fsanitize=address,undefined` and `gpt-4.1-mini` as the proposer (full data
-in [artifacts/final/comparison.md](artifacts/final/comparison.md), per-run
-detail and figures under [artifacts/final/baseline](artifacts/final/baseline)
-and [artifacts/final/refined](artifacts/final/refined)):
+**Final result: a seeded, 15-run-per-arm comparison of the baseline
+generator against the LLM-refined loop**, both run against the pinned cJSON
+build with `-fsanitize=address,undefined` and `gpt-4.1-mini` as the proposer
+(full data in
+[artifacts/repeated/cjson-refined-n15/comparison.md](artifacts/repeated/cjson-refined-n15/comparison.md),
+per-run detail under
+[artifacts/repeated/cjson-baseline-n15](artifacts/repeated/cjson-baseline-n15)
+and [artifacts/repeated/cjson-refined-n15](artifacts/repeated/cjson-refined-n15)):
 
-| Metric | Baseline (n = 5) | Refined (n = 5) | Change |
+| Metric | Baseline (n = 15) | Refined (n = 15) | Change |
 |---|---:|---:|---:|
-| Acceptance rate | 57.64% | 96.77% | +39.13 pp (+67.9%) |
-| Structural fingerprints (sum/run, mean) | 276.0 | 616.2 | +123.3% |
-| Rejection signatures (sum/run, mean) | 92.4 | 29.6 | -68.0% |
+| Acceptance rate | 58.21% | 97.07% | +38.86 pp (+66.8%) |
+| Structural fingerprints (sum/run, mean) | 274.5 | 598.2 | descriptive only\* |
+| Rejection signatures (sum/run, mean) | 87.8 | 24.1 | descriptive only\* |
 | Sanitizer crashes / timeouts / signals | 0 | 0 | — |
 
-Five independent runs per arm (seeds 0-4), each five refinement iterations of
-up to 500 examples. Every run's figures (`acceptance_rate_per_iteration`,
-`structural_fingerprints_per_iteration`, `rejection_signatures_per_iteration`,
-`acceptance_rate_across_runs`, each as `.png`/`.pdf`) and reproducibility
-report (compiler, harness SHA-256, Hypothesis/Python versions, per-run seeds,
-exact command line, repository commit) are under
-`artifacts/final/{baseline,refined}/`. No crashes were found in either arm —
-the measured effect is that LLM-guided refinement reliably steers the
-generator toward grammar-valid, structurally diverse inputs, not toward a
-memory-safety bug in cJSON specifically (see the
-[parson bonus](#bonus-a-second-target-run-for-real-parson) below for where
-this pipeline did go looking for one). These are descriptive statistics over
-5 runs per arm — no significance test was performed and none is claimed; see
-[artifacts/final/comparison.md](artifacts/final/comparison.md) for the full
-caveats on unequal per-arm budgets and metric definitions.
+\* fingerprint and rejection-signature totals scale with each arm's total
+executed inputs, which differ between arms (500 vs. ~1,533 on average), so
+they are reported as descriptive sums rather than tested effects.
 
-This comparison uses the exact recipe from
-[Repeated experiments and reproducibility](#repeated-experiments-and-reproducibility)
-below, pointed at `artifacts/final/{baseline,refined}` instead of
-`artifacts/repeated/...`:
+Fifteen independent runs per arm (seeds 0-14), each up to five refinement
+iterations of up to 500 examples. All fifteen refined-arm runs exceed all
+fifteen baseline-arm runs on acceptance rate — complete rank separation,
+giving an exact two-sided permutation p = 2/C(30,15) ≈ 1.29e-8 for this
+scale-free metric specifically (not claimed for the two count-based rows,
+which are descriptive and not tested). Every run's manifest, reproducibility
+report, and aggregate/comparison output are under
+`artifacts/repeated/cjson-{baseline,refined}-n15/`. No crashes were found in
+either arm — the measured effect is that LLM-guided refinement reliably
+steers the generator toward grammar-valid input, not toward a memory-safety
+bug in cJSON specifically (see the
+[parson bonus](#bonus-a-second-target-run-for-real-parson) below for where
+this pipeline did go looking for one).
+
+This extends an initial five-run-per-arm pilot
+([artifacts/final/comparison.md](artifacts/final/comparison.md), 57.64% ->
+96.77%, `n=5`) to a larger sample; the pilot is superseded by the table
+above as the paper's reported result but is kept as-is for provenance —
+it is the version archived at the project's Zenodo DOI.
+
+Reproduce the fifteen-run comparison with:
 
 ```sh
 PYTHONPATH=src .venv/bin/python scripts/run_baseline.py \
-    --artifact-dir artifacts/final/baseline --runs 5 --examples 500 --seed 0
+    --artifact-dir artifacts/repeated/cjson-baseline-n15 --runs 15 --examples 500 --seed 0
 PYTHONPATH=src .venv/bin/python scripts/run_refinement.py \
-    --artifact-dir artifacts/final/refined --runs 5 --iterations 5 \
+    --artifact-dir artifacts/repeated/cjson-refined-n15 --runs 15 --iterations 5 \
     --examples 500 --seed 0 --model gpt-4.1-mini
-.venv/bin/python scripts/aggregate_runs.py artifacts/final/baseline
-.venv/bin/python scripts/aggregate_runs.py artifacts/final/refined
-.venv/bin/python scripts/make_figures.py artifacts/final/baseline
-.venv/bin/python scripts/make_figures.py artifacts/final/refined
-.venv/bin/python scripts/compare_experiments.py artifacts/final/baseline artifacts/final/refined
+.venv/bin/python scripts/aggregate_runs.py artifacts/repeated/cjson-baseline-n15
+.venv/bin/python scripts/aggregate_runs.py artifacts/repeated/cjson-refined-n15
+.venv/bin/python scripts/compare_experiments.py \
+    artifacts/repeated/cjson-baseline-n15 artifacts/repeated/cjson-refined-n15
+.venv/bin/python scripts/make_paper_figure.py \
+    --baseline-dir artifacts/repeated/cjson-baseline-n15 \
+    --refined-dir artifacts/repeated/cjson-refined-n15
+```
+
+### Feedback-signal ablation
+
+Which of the three coverage-free proxies actually drives the acceptance-rate
+improvement? Re-running the refined arm under three feedback modes (five
+seeded trials each, seeds 0-4 against the same cJSON build) isolates this
+(full data under
+[artifacts/repeated/ablation-full/comparison.md](artifacts/repeated/ablation-full/comparison.md)
+and the sibling `ablation-counts{,-rejections}/` directories):
+
+| Feedback mode | Acceptance rate (usable trials) | Fingerprints (sum/run) | Rejection sigs (sum/run) |
+|---|---:|---:|---:|
+| `counts` | 92.58% (4 of 5) | 505.5 | 6.5 |
+| `counts+rejections` | 96.42% (4 of 5) | 457.3 | 26.8 |
+| `full` | 95.53% (4 of 5) | 503.5 | 34.8 |
+
+In each mode, one of the five trials produced no sandbox-valid LLM proposal
+across all five iterations (`iterations_with_data == 0` in `aggregate.json`)
+and is excluded, leaving four usable trials per mode. All three modes reach
+a similar, near-ceiling acceptance rate — descriptively, `counts` alone
+looks close to sufficient for that objective on its own — but
+rejection-signature diversity increases with how much of the signal the
+proposer sees, roughly 5x higher under `full` than under `counts` alone.
+At four trials per condition this is reported descriptively, not as a
+tested effect (no separation between modes' acceptance rates).
+
+Reproduce with:
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/run_refinement.py \
+    --artifact-dir artifacts/repeated/ablation-counts --runs 5 --iterations 5 \
+    --examples 500 --seed 0 --model gpt-4.1-mini --feedback counts
+PYTHONPATH=src .venv/bin/python scripts/run_refinement.py \
+    --artifact-dir artifacts/repeated/ablation-counts-rejections --runs 5 --iterations 5 \
+    --examples 500 --seed 0 --model gpt-4.1-mini --feedback counts+rejections
+PYTHONPATH=src .venv/bin/python scripts/run_refinement.py \
+    --artifact-dir artifacts/repeated/ablation-full --runs 5 --iterations 5 \
+    --examples 500 --seed 0 --model gpt-4.1-mini --feedback full
+.venv/bin/python scripts/aggregate_runs.py artifacts/repeated/ablation-counts
+.venv/bin/python scripts/aggregate_runs.py artifacts/repeated/ablation-counts-rejections
+.venv/bin/python scripts/aggregate_runs.py artifacts/repeated/ablation-full
 ```
 
 **Earlier sanity-check campaigns.** Before this final comparison, small
