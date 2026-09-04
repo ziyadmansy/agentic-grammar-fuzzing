@@ -630,18 +630,20 @@ first pass is more likely to find something.
 
 ## Citation
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22231289.svg)](https://doi.org/10.5281/zenodo.22231289)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22231288.svg)](https://doi.org/10.5281/zenodo.22231288)
 
 If you use this repository, please cite the archived release
-(see also [`CITATION.cff`](CITATION.cff)):
+(see also [`CITATION.cff`](CITATION.cff)). The DOI below is the concept DOI —
+it always resolves to the latest archived version; cite a specific version's
+own DOI instead if you need to pin to exactly the artifact you used:
 
 ```bibtex
 @software{mansy2026agentic,
   author  = {Mansy, Ziyad},
   title   = {{Agentic Grammar Fuzzing: LLM-Guided Grammar Refinement for Parser Testing}},
   year    = {2026},
-  version = {1.0.0},
-  doi     = {10.5281/zenodo.22231289},
+  version = {1.1.0},
+  doi     = {10.5281/zenodo.22231288},
   url     = {https://github.com/ziyadmansy/agentic-grammar-fuzzing}
 }
 ```
