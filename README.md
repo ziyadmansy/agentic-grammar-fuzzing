@@ -630,12 +630,25 @@ first pass is more likely to find something.
 
 ## Citation
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22231288.svg)](https://doi.org/10.5281/zenodo.22231288)
+[![Paper DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22556343.svg)](https://doi.org/10.5281/zenodo.22556343)
+[![Software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22231288.svg)](https://doi.org/10.5281/zenodo.22231288)
 
-If you use this repository, please cite the archived release
-(see also [`CITATION.cff`](CITATION.cff)). The DOI below is the concept DOI —
-it always resolves to the latest archived version; cite a specific version's
-own DOI instead if you need to pin to exactly the artifact you used:
+If you use this work, please cite the paper (preferred — see also
+[`CITATION.cff`](CITATION.cff)):
+
+```bibtex
+@article{mansy2026coveragefree,
+  author = {Ibrahim, Ziyad Mohammad Mansy},
+  title  = {{Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators}},
+  year   = {2026},
+  doi    = {10.5281/zenodo.22556343}
+}
+```
+
+To cite the software/data artifact itself rather than the paper, use the
+concept DOI above (it always resolves to the latest archived version; cite a
+specific version's own DOI instead if you need to pin to exactly the
+artifact you used):
 
 ```bibtex
 @software{mansy2026agentic,

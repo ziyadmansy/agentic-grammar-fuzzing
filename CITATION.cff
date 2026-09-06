@@ -35,3 +35,13 @@ abstract: >
 
 version: "1.1.0"
 date-released: "2026-09-05"
+
+preferred-citation:
+  type: article
+  title: "Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators"
+  authors:
+    - family-names: Ibrahim
+      given-names: "Ziyad Mohammad Mansy"
+      orcid: "https://orcid.org/0009-0008-3499-3828"
+  doi: 10.5281/zenodo.22556343
+  year: 2026
