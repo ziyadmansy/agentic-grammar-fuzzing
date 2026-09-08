@@ -18,7 +18,7 @@ The primary target is cJSON~\cite{gamble2024cjson}, pinned at v1.7.19
 (commit \texttt{c859b25}). The grammar is the ANTLR~\cite{parr2013antlr}
 grammars-v4 JSON grammar~\cite{antlr2024grammarsv4}, vendored unmodified. A thin C harness
 reads a candidate input from stdin and parses it with
-\texttt{cJSON\_ParseWithLengthOpts(..., require\_null\_terminated=1)}, the
+\texttt{cJSON\_ParseWithLengthOpts(\allowbreak..., \allowbreak require\_null\_terminated=1)}, the
 library's strictest entry point: it rejects any input with trailing bytes
 after a valid value, so an ``accepted'' input is one where the entire buffer
 is a single grammar-valid value, matching the grammar's
@@ -125,7 +125,7 @@ and logged, and never reaches the harness. This is deliberately scoped as a
 filter against \emph{accidental} misuse of untrusted, LLM-authored code, not
 as a hardened security boundary: Python's object model can reach
 functionality beyond any blocklisted name (for instance, by walking
-\texttt{().\_\_class\_\_.\_\_base\_\_.\_\_subclasses\_\_()}), and closing
+\texttt{().\_\_class\_\_\allowbreak.\_\_base\_\_\allowbreak.\_\_subclasses\_\_()}), and closing
 that off would require process- or container-level isolation rather than
 name filtering. We report this limitation directly rather than implying a
 guarantee the design does not provide.
