@@ -633,8 +633,7 @@ first pass is more likely to find something.
 [![Paper DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22556343.svg)](https://doi.org/10.5281/zenodo.22556343)
 [![Software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22231288.svg)](https://doi.org/10.5281/zenodo.22231288)
 
-If you use this work, please cite the paper (preferred — see also
-[`CITATION.cff`](CITATION.cff)):
+If you use this work, please cite the paper (preferred):
 
 ```bibtex
 @article{mansy2026coveragefree,
@@ -656,11 +655,10 @@ artifact you used):
   title   = {{Agentic Grammar Fuzzing: LLM-Guided Grammar Refinement for Parser Testing}},
   year    = {2026},
   version = {1.1.0},
-  doi     = {10.5281/zenodo.22231288},
-  url     = {https://github.com/ziyadmansy/agentic-grammar-fuzzing}
+  doi     = {10.5281/zenodo.22231288}
 }
 ```
 
 ---
 
-**Author:** Ziyad Mohammad Mansy Ibrahim — ziyadmohammad37@gmail.com — [GitHub](https://github.com/ziyadmansy) · [LinkedIn](https://www.linkedin.com/in/ziyadmansy/)
+**Author information withheld from this mirror for double-anonymous review.**
