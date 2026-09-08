@@ -7,10 +7,10 @@ refines it using feedback from previous runs — no coverage instrumentation,
 only sanitizers and parser-level signal.
 
 **Paper:** a full write-up of this project's methodology and results lives
-under [`paper/`](paper/main.tex) (LaTeX source, ready to build in Overleaf or
-locally) — see [Results so far](#results-so-far) below for the headline
-numbers, or the paper itself for the full methodology, related work, and
-discussion.
+under [`paper/`](paper/main-forge2027.tex) (LaTeX source, ready to build in
+Overleaf or locally) — see [Results so far](#results-so-far) below for the
+headline numbers, or the paper itself for the full methodology, related
+work, and discussion.
 
 > **Self-initiated extension:** this repo also stands up a second,
 > independent target ([parson](https://github.com/kgabis/parson)) and runs the
