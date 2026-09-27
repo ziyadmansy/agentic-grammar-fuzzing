@@ -630,7 +630,7 @@ first pass is more likely to find something.
 
 ## Citation
 
-[![Paper DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22556343.svg)](https://doi.org/10.5281/zenodo.22556343)
+[![Paper DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22556342.svg)](https://doi.org/10.5281/zenodo.22556342)
 [![Software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22231288.svg)](https://doi.org/10.5281/zenodo.22231288)
 
 If you use this work, please cite the paper (preferred — see also
@@ -641,7 +641,7 @@ If you use this work, please cite the paper (preferred — see also
   author = {Ibrahim, Ziyad Mohammad Mansy},
   title  = {{Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators}},
   year   = {2026},
-  doi    = {10.5281/zenodo.22556343}
+  doi    = {10.5281/zenodo.22556342}
 }
 ```
 
