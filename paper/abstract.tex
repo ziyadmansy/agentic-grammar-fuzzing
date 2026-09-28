@@ -23,10 +23,14 @@ alone, counts with rejection signatures, or the full signal -- finds
 acceptance-rate gains are broadly similar across the three conditions, with
 full feedback preserving more rejection-signature diversity than counts
 alone (four usable runs per condition; reported descriptively, not tested).
-We additionally run the identical, unmodified pipeline against a second parser (parson) for five real
-iterations (3{,}000 sanitizer-instrumented executions); no crash was found,
-and we report this as a negative result, supported by manual review of the
-highest-risk code paths, rather than claim a bug that was not observed. We
+A pre-registered replication on a second parser, parson, with the same
+proposer and design finds the opposite: refinement lowers mean acceptance
+from 95.6\% to 92.4\% ($p \approx 0.024$), and no crash occurs in 25{,}500
+sanitizer-instrumented executions. Every rejected input is explained: parson
+accepts any bytes after a complete value, so the static baseline starts near
+its ceiling, while the refined generators produce grammar-valid constructs
+that parson refuses without reporting why. The acceptance proxy is thus only
+as useful as the target is strict and informative about rejections. We
 discuss how grammar-implementation mismatches -- for instance, duplicate
 JSON object keys accepted by one parser and rejected by the other under an
 identical grammar -- are themselves a source of fuzzing-relevant signal that

@@ -28,29 +28,37 @@ A refinement objective that also rewarded a target reject rate, rather than
 treating ``more accepted'' as strictly better without limit, would be a
 direct, low-cost improvement to the design evaluated here.
 
-\subsection{Interpreting the null result on parson}
-Finding no crash across 3{,}000 sanitizer-instrumented executions against
-parson is evidence about this pipeline's search within this budget on this
-pinned commit, not evidence about parson's correctness in general, and not
-evidence about the method's bug-finding power in general. We treated the
-source-level argument in Section~\ref{sec:evaluation} as a way to make the
-absence explainable rather than mysterious, but an explainable absence is
-still an absence: five iterations against two hand-picked stress axes (wide
-structures, and the internal free path) is a small, targeted search of a
-small, well-tested codebase, and the honest reading is that this budget was
-not enough to distinguish ``no bug in the code paths we exercised'' from ``a
-bug exists in a code path we did not exercise,'' such as parson's public
+\subsection{Interpreting the parson result}
+The replication shows that the acceptance proxy depends on the target in two
+ways. First, it needs headroom: a baseline built from trailing-byte mutations
+is almost fully accepted by a parser that ignores trailing bytes, so there is
+little left for refinement to raise. Second, it needs the target to be strict
+in the places the grammar is, and to say why it rejects: parson refuses
+grammar-valid constructs that cJSON accepts and reports no error detail, so a
+proposer shown only counts and a single rejection signature cannot tell that
+its duplicate keys or \texttt{0e5} numbers are the problem. Refinement then
+turns the concern raised above for cJSON around: its more varied generators
+reach more of the grammar, and on this target that costs acceptance. For
+fuzzing this is not wasted effort, since those inputs exercise parson's
+rejection paths, but it means acceptance rate cannot serve as the objective
+on its own, and it motivates a proxy that separates grammar-valid rejections
+from malformed input.
+
+Finding no crash in 25{,}500 sanitizer-instrumented executions on parson, and
+none in the exploratory pilot, is evidence about this pipeline's search within
+this budget on this pinned commit, not evidence about parson's correctness in
+general. It cannot distinguish ``no bug in the code paths we exercised'' from
+``a bug exists in a code path we did not exercise,'' such as parson's public
 mutation API, which the black-box parse-then-free harness used here cannot
 reach at all.
 
-What the parson run does establish is narrower and more mechanical: every
+What the parson runs do establish is narrower and more mechanical: every
 non-target-specific pipeline component (\texttt{runner}, \texttt{campaign},
 \texttt{proposal}, \texttt{refinement}, \texttt{triage}, \texttt{minimize})
-worked unmodified against a second parser with a different, and in two
+worked unmodified against a second parser with a different, and in several
 respects opposite, set of grammar adaptations, with only a new harness and
-build script required. That is a claim about the pipeline's portability
-across targets, not a claim about its effectiveness at finding bugs in any
-particular one of them.
+build script required. The pipeline is portable across targets; the effect
+of its acceptance proxy is not.
 
 \subsection{Threats to validity}
 \textbf{Construct validity.} A ``crash'' in this pipeline is defined purely
@@ -64,7 +72,12 @@ result, not by any automated oracle; a generator that never targets an
 under-specified region of the grammar would not surface this class of
 finding at all.
 
-\textbf{Internal validity.} The structural-fingerprint proxy truncates at
+\textbf{Internal validity.} The parson replication ran 24 days after the
+cJSON runs, with the harness rebuilt by Homebrew clang 23.1 because a
+toolchain upgrade had removed the clang 22 sanitizer runtime it was linked to;
+acceptance depends on parson's parsing logic, not on the sanitizer runtime,
+and every binary is identified by hash in its run's reproducibility report.
+The structural-fingerprint proxy truncates at
 256 bytes (Section~\ref{sec:methodology}), so it systematically undercounts
 diversity among longer, deeply nested inputs -- exactly the inputs a
 refinement loop chasing ``more diversity'' is most likely to produce over
@@ -85,10 +98,10 @@ comparison with new count-based metrics should convert to a rate first.
 
 \textbf{External validity.} All results are on JSON, on two relatively
 small and independently well-tested C parsers, with one LLM
-(\texttt{gpt-4.1-mini}) at one temperature setting for the only
-LLM-driven arm. We make no claim that the magnitude of the cJSON effect, or
-the absence of a crash on parson, generalizes to other formats, other
-parsers, or other proposer models.
+(\texttt{gpt-4.1-mini}) at one temperature setting for every LLM-driven
+arm. The two parsers already disagree on the direction of the effect; we make
+no claim that either magnitude, or the absence of a crash, generalizes to
+other formats, other parsers, or other proposer models.
 
 \subsection{When this approach is, and is not, the right tool}
 The motivating case for a coverage-free feedback loop is a target that
@@ -113,7 +126,7 @@ to the refinement prompt, motivated directly by this section's concern about
 an acceptance-rate ceiling and now further motivated by the ablation's
 rejection-signature pattern, could test whether it preserves
 boundary-probing behavior without sacrificing the acceptance-rate gain
-measured here. Third, and most directly relevant to the parson null result, driving
+measured here. Third, and most directly relevant to parson, driving
 \texttt{json\_value\_free} through parson's public mutation API rather than
 only the parse-then-free path would exercise object lifetime code this
 black-box harness cannot currently reach at all. Fourth, comparing against
@@ -123,8 +136,8 @@ direct way to situate the magnitude of the cJSON result against prior work.
 
 Two further extensions are larger in scope and deliberately left for future
 work rather than attempted here. One is broadening beyond a second
-same-language, same-format target: a third C JSON parser would only weakly
-extend the generalization claim already established by parson, whereas a
+same-language, same-format target: a third C JSON parser would add little
+to what the parson replication already shows about target dependence, whereas a
 target in a different format, or a memory-safe language where a
 ``crash'' oracle must be redefined around uncaught exceptions and API
 contract violations rather than sanitizer output -- for instance, JSON

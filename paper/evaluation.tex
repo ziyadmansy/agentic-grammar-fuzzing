@@ -47,9 +47,9 @@ seeded runs per arm). Every refined run exceeds every baseline run.}
 \end{figure}
 
 \textbf{Unequal budgets.} Baseline runs execute 500 inputs on average;
-refined runs execute 1{,}533 on average, because the refinement loop ran
-more iterations per run on average and some iterations end early on a
-rejected LLM proposal (Section~\ref{sec:evaluation-ablation}). Every
+refined runs execute 1{,}533 on average, because each refined run has up
+to five iterations of 500 inputs and an iteration whose LLM proposal is
+rejected executes none (29 of the 75 refined iterations). Every
 count-based quantity (accepted, rejected, fingerprints, signatures as raw
 totals rather than rates) therefore scales with a budget that differs
 between arms and is not directly comparable; acceptance rate is scale-free
@@ -64,12 +64,12 @@ diversity -- not on vulnerability discovery in cJSON; we do not claim or
 imply that refinement found, or was likely to find, a memory-safety bug in
 this target.
 
-\subsection{RQ2: generalization to parson}
+\subsection{RQ2: replication on parson}
+\label{sec:evaluation-parson}
 
 We reused every pipeline component unchanged against a second, independent
-target, parson~\cite{gabis2024parson} (commit \texttt{ba29f4e}, v1.5.3), with a human standing in
-for the LLM proposer call and every resulting proposal passing through the
-identical validation and execution path (Section~\ref{sec:methodology}).
+target, parson~\cite{gabis2024parson} (commit \texttt{ba29f4e}, v1.5.3); only
+the harness differs.
 Reconciling the same JSON grammar against parson's real behavior surfaced
 three adaptations, two of which go the \emph{opposite} direction from the
 cJSON adaptations reported in Section~\ref{sec:methodology} under the
@@ -88,12 +88,74 @@ implemented parsers is, on its own, evidence that a purely formal grammar
 specification cannot supply the target-specific signal needed to fuzz either
 implementation precisely.
 
-Table~\ref{tab:parson-iterations} summarizes the five iterations actually
-run.
+\textbf{Replication.} Table~\ref{tab:parson} reports the pre-registered
+replication of RQ1's design on parson. Refinement \emph{lowered} acceptance:
+92.4\% against the baseline's 95.6\% (exact two-sided Mann--Whitney
+$p \approx 0.024$, Cliff's $\delta = -0.48$). The baseline has tied values,
+which the exact test assumes away; a tie-corrected test ($p \approx 0.025$)
+and a permutation test on the difference in means ($p \approx 0.005$) agree.
+No crash, timeout, or signal occurred in 25{,}500 sanitizer-instrumented
+executions, and 39 of the 75 refined iterations lost their proposal to
+sandbox validation (29 of 75 on cJSON).
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{parson: baseline vs.\ LLM-refined, fifteen seeded runs per arm,
+identical design to Table~\ref{tab:cjson-comparison}. $p$: exact two-sided
+Mann--Whitney U on per-run acceptance rate.}
+\label{tab:parson}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Metric & Baseline & Refined \\
+\midrule
+Acceptance rate, mean (sd) & 95.61\% (0.95) & 92.41\% (3.96) \\
+Acceptance rate, per-run range & 94.0--97.0\% & 86.7--98.7\% \\
+Crashes / timeouts / signals & 0 & 0 \\
+Distinct rejection signatures & 1 & 1 \\
+\midrule
+\multicolumn{3}{@{}l}{Refined $-$ baseline: $-3.20$ pp, $p \approx 0.024$, $\delta = -0.48$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why refinement lowers acceptance on parson.} Every input parson
+rejected in either arm is explained by a construct confirmed with a minimal
+document against the harness. The baseline alternates a grammar-valid
+document with the same document plus one trailing suffix (a comma, a bracket,
+a brace, a word, or a NUL byte). cJSON's full-buffer entry point rejects every
+suffix except NUL, which is what gives it room to improve; parson accepts any
+bytes after a complete value, so none is rejected, and its only baseline
+rejections (329 of 7{,}500) are objects whose key contains an escaped NUL,
+which parson's source states it does not support. The baseline therefore
+starts at 95.6\% with almost nothing for refinement to fix. The refined
+generators are more varied and produce grammar-valid constructs that parson
+refuses. Of the 1{,}063 inputs it rejected, 474 contain a duplicate key, 427
+an unpaired surrogate escape, 138 a number that overflows a double, 136 a
+zero followed directly by an exponent (\texttt{0e5}), and 10 a NUL in a key
+(an input can have several); only 6 are not valid under the grammar. The
+last two numeric cases differ in status: RFC~8259 permits limits on number
+range, but \texttt{0e5} is valid JSON, and support for it was proposed to
+parson and not merged~\cite{parsonpr188}. A further 392 inputs (2.2\%)
+failed to encode and count as not accepted, as in RQ1. Finally, parson's
+parser returns no error detail, so all 1{,}392 rejections in both arms share
+one rejection signature: the proxy tells the proposer how many inputs failed,
+never why.
+
+\subsection{Exploratory parson pilot}
+\label{sec:evaluation-parson-pilot}
+
+Before API access was available, an exploratory pilot ran five iterations on
+parson whose proposals were not produced by the loop's LLM proposer: they
+were written outside the loop, in an interactive session with an AI coding
+assistant that could read parson's source code. The pilot is therefore
+neither LLM-proposer-driven nor black-box, and we report it only for what it
+targeted and found, not as evidence about the method.
+Table~\ref{tab:parson-iterations} summarizes its iterations.
 
 \begin{table*}[t]
 \centering
-\caption{parson: five real refinement iterations, 500 examples each.}
+\caption{parson, exploratory pilot (not part of the statistics): five iterations of 500 examples each, with proposals written outside the loop.}
 \label{tab:parson-iterations}
 \small
 \begin{tabularx}{\textwidth}{c X r r}
@@ -109,11 +171,11 @@ Iter.\ & Focus (abridged) & Acc./Rej.\ & Fingerprints \\
 \end{tabularx}
 \end{table*}
 
-\textbf{Result.} No crash was found across all 3{,}000 sanitizer-instrumented
-executions (500 baseline plus $5 \times 500$ refinement iterations), verified
+No crash was found in the pilot's 3{,}000 sanitizer-instrumented
+executions (500 baseline plus $5 \times 500$ pilot iterations), verified
 by grepping every run's stderr for AddressSanitizer, UndefinedBehaviorSanitizer,
 and LeakSanitizer text and checking for any non-\texttt{accepted}/\texttt{rejected}
-status. Manual review of the highest-risk code paths -- \texttt{parse\_utf16}'s
+status. A source review of the highest-risk code paths -- \texttt{parse\_utf16}'s
 raw pointer walk across surrogate pairs, \texttt{process\_string}'s
 output-buffer sizing, \texttt{json\_object\_grow\_and\_rehash}'s linear
 probing, and, informed specifically by iterations 4--5, \texttt{json\_object\_add}'s

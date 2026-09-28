@@ -14,18 +14,19 @@ effects because the arms used different budgets. A feedback-signal ablation
 found that acceptance-rate gains hold up under a sparser signal than the
 full one, but that the full signal preserves more rejection-signature
 diversity -- a small-sample, descriptive finding that motivates, without yet
-proving, an explicit reject-rate objective as future work. Reusing the same
-pipeline, unmodified, against a second, independently adapted target
-(parson) confirmed the mechanics generalize across targets, while five real
-refinement iterations and 3{,}000 sanitizer-instrumented executions found no
-crash -- a result we reported as an explainable negative finding, supported
-by manual review of the highest-risk code paths, rather than reframed as a
-success.
+proving, an explicit reject-rate objective as future work. A pre-registered
+replication on a second parser, parson, reversed the effect: refinement
+lowered acceptance from 95.6\% to 92.4\%, because parson accepts trailing
+bytes, rejects several grammar-valid constructs that the refined generators
+produce, and reports no error detail. The pipeline ran unmodified on both
+targets; the value of its proxy signal depends on the target. No crash was
+found on either parser.
 
 The broader point this project argues for is methodological rather than a
 single number: a coverage-free proxy signal, cheap enough to compute from a
 black-box harness's own accept/reject decision, is sufficient to steer
-LLM-guided refinement of a grammar-based generator, which matters
+LLM-guided refinement of a grammar-based generator on a target that is
+strict and reports why it rejects input, which matters
 specifically for the targets coverage-guided fuzzing cannot reach -- pinned
 vendored dependencies, closed or license-restricted binaries, and embedded
 or cross-compiled parsers. We also found that reconciling a formal grammar
@@ -38,6 +39,5 @@ against the real implementation surfaces for free.
 
 We release the full pipeline, both harnesses, every campaign artifact, and
 the reproducibility tooling described in Section~\ref{sec:methodology}, so
-that the comparison in Section~\ref{sec:evaluation} and the null result on
-parson can both be checked, extended, or falsified directly rather than
+that the comparisons in Section~\ref{sec:evaluation} on both parsers can be checked, extended, or falsified directly rather than
 taken on faith.\footnote{\url{\artifacturl}}
