@@ -1,0 +1,1 @@
+ProposalError: generated_json is not a Hypothesis strategy: 'utf-8' codec can't encode character '\uda2c' in position 104: surrogates not allowed

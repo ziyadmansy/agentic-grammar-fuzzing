@@ -1,0 +1,11 @@
+{
+  "counts": {
+    "accepted": 455,
+    "encoding_error": 25,
+    "rejected": 20
+  },
+  "unique_lengths": 119,
+  "unique_structures": 221,
+  "unique_rejections": 1,
+  "total": 500
+}

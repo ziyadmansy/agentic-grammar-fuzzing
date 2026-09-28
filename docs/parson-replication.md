@@ -40,3 +40,50 @@ The August run stays in the repository, relabelled as an exploratory pilot.
 - Every run is reported. A run is repeated only for an infrastructure failure
   (API error, harness failing to start), and any such repeat is logged here.
 - Any sanitizer crash is triaged and minimized before anything is claimed.
+
+## Results (2026-09-29, all 30 pre-registered runs, no protocol changes)
+
+No run was repeated. Commands exactly as above; analysis with
+`scripts/parson_stats.py` and `scripts/parson_rejections.py`.
+
+| Arm | Per-run acceptance (%) | Mean (sd) |
+|---|---|---|
+| Baseline | 95.0, 94.4, 95.8, 96.6, 96.2, 94.6, 96.8, 95.2, 95.6, 97.0, 95.2, 95.6, 95.2, 94.0, 97.0 | 95.61 (0.95) |
+| Refined | 96.8, 98.7, 89.05, 93.4, 92.6, 96.5, 88.47, 94.4, 86.67, 89.7, 95.27, 93.1, 96.33, 86.8, 88.4 | 92.41 (3.96) |
+
+- **Primary test.** Refined minus baseline: -3.20 pp; exact two-sided
+  Mann-Whitney U = 58.0, p = 0.0235; Cliff's delta = -0.48. Refinement
+  *lowered* acceptance. The baseline has tied values, which the exact method
+  assumes away; the tie-corrected asymptotic test gives p = 0.025 and a
+  permutation test on the difference in means (200,000 resamples, seed 0)
+  gives p = 0.0052, so the conclusion does not depend on the ties.
+- **Crashes, timeouts, signals:** 0 in 25,500 sanitizer-instrumented
+  executions (7,500 baseline, 18,000 refined).
+- **Rejected proposals:** 39 of 75 refined iterations (cJSON n=15: 29 of 75).
+- **Descriptive:** fingerprints (sum/run) 274.5 baseline vs 513.9 refined;
+  rejection signatures (sum/run) 1.0 vs 1.9.
+
+### Mechanism (verified)
+
+- The baseline alternates a grammar-valid document with the same document
+  plus one trailing suffix (`,` `]` `}` ` trailing` or NUL). parson accepts
+  any bytes after a complete value, so no suffix is ever rejected. All 329
+  baseline rejections are objects whose key contains an escaped NUL, which
+  parson documents in its source ("We do not support key names with embedded
+  \0 chars", parson.c line 973). Acceptance is therefore 1 minus the share of
+  documents with such a key.
+- Refined arm: 16,545 accepted, 392 encoding errors (counted as
+  not accepted, as in RQ1), 1,063 rejected. Every rejection is explained:
+  duplicate object key 474, unpaired surrogate escape 427, number overflowing
+  a double 138, zero followed by an exponent (`0e5`) 136, NUL in a key 10
+  (an input can have several); 6 have no grammar-valid prefix. All but those
+  6 are valid under grammar/JSON.g4.
+- Each cause confirmed with a minimal document against the harness:
+  `{"a":1,"a":2}`, a key containing `\u0000`, `"\udca8"`, `"\ud800"`, `0e5`,
+  `-0e5` and `1e400` are rejected; `0.0e5`, `1e-400`, a paired surrogate, a
+  NUL in a value and `[1,2] trailing` are accepted. `0e5` is valid under RFC
+  8259; support for it was proposed in parson PR #188 (2022, closed
+  unmerged). RFC 8259 permits limits on number range.
+- Every parson rejection in both arms has the same signature
+  (`status=rejected`): parson's parse API returns NULL with no error detail,
+  so the rejection-signature proxy carries no information on this target.

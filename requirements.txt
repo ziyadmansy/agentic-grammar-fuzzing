@@ -6,3 +6,6 @@ pytest==9.1.1
 openai==3.0.0
 # only needed for scripts/make_figures.py
 matplotlib==3.11.1
+# only needed for scripts/parson_stats.py (exact Mann-Whitney U, as pre-registered
+# in docs/parson-replication.md)
+scipy==1.18.1
