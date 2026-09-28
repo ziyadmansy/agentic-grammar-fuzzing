@@ -14,10 +14,11 @@ discussion.
 
 > **Second target:** the repo also runs the full pipeline end-to-end against
 > a second, independent parser ([parson](https://github.com/kgabis/parson)).
-> In that run a human, not an LLM, played the proposer's role: each
-> iteration's strategy was written by hand and then validated and executed
-> through exactly the same `load_strategy`/`run_campaign` path a model's
-> output would take. See [Second target: parson](#second-target-parson)
+> In that run the pipeline's own LLM proposer (gpt-4.1-mini via the API) was
+> not called: each iteration's strategy was written outside the loop, in an
+> interactive session with an AI coding assistant that could read parson's
+> source, and then validated and executed through exactly the same
+> `load_strategy`/`run_campaign` path a model's output would take. See [Second target: parson](#second-target-parson)
 > for the grammar-adaptation findings, the five campaigns, and the analysis
 > of why no crash was found.
 
@@ -507,10 +508,10 @@ second target, reusing
 every pipeline component unchanged (`runner`, `campaign`, `proposal`,
 `refinement`, `triage`, `minimize` are all format/target-agnostic — only a
 new harness and build script were needed), and runs the real refinement loop
-against it with a human in the proposer's role (no LLM call): each
-iteration's strategy was written by reasoning over the campaign summary and
-the target's source code, so these iterations are not black-box. The human
-played exactly the role `OpenAIProposer` would otherwise play; each strategy
+against it without calling the pipeline's LLM proposer (no API call): each
+iteration's strategy was written in an interactive session with an AI coding
+assistant, reasoning over the campaign summary and the target's source code,
+so these iterations are not black-box. The assistant played exactly the role `OpenAIProposer` would otherwise play; each strategy
 was then validated through the same `load_strategy` sandbox and executed through the
 same `run_campaign`/`run_refinement_loop` code path as a real proposer's
 output would be.
