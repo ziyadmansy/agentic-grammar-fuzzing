@@ -1,4 +1,4 @@
-# Agentic Grammar Fuzzing
+# Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators
 
 Black-box, grammar-seeded fuzzing of the [cJSON](https://github.com/DaveGamble/cJSON)
 parser, driven by an LLM that turns a formal ANTLR grammar into a composable
@@ -12,19 +12,18 @@ locally) — see [Results so far](#results-so-far) below for the headline
 numbers, or the paper itself for the full methodology, related work, and
 discussion.
 
-> **Self-initiated extension:** this repo also stands up a second,
-> independent target ([parson](https://github.com/kgabis/parson)) and runs the
-> full pipeline against it end-to-end, beyond the project's original scope.
-> No LLM API key was used: each iteration's strategy was authored by hand in
-> the proposer's role and then validated and executed through exactly the
-> same `load_strategy`/`run_campaign` path a model's output would take. See
-> [Bonus: a second target, run for real (parson)](#bonus-a-second-target-run-for-real-parson)
-> for the full writeup: grammar-adaptation findings, five real campaigns,
-> and an honestly-argued "why no crash" analysis.
+> **Second target:** the repo also runs the full pipeline end-to-end against
+> a second, independent parser ([parson](https://github.com/kgabis/parson)).
+> In that run a human, not an LLM, played the proposer's role: each
+> iteration's strategy was written by hand and then validated and executed
+> through exactly the same `load_strategy`/`run_campaign` path a model's
+> output would take. See [Second target: parson](#second-target-parson)
+> for the grammar-adaptation findings, the five campaigns, and the analysis
+> of why no crash was found.
 
 ## Contents
 
-- [Agentic Grammar Fuzzing](#agentic-grammar-fuzzing)
+- [Coverage-Free Fuzzing](#coverage-free-fuzzing-llm-guided-refinement-of-grammar-based-test-generators)
   - [Contents](#contents)
   - [Overview](#overview)
   - [Target and grammar](#target-and-grammar)
@@ -38,7 +37,7 @@ discussion.
   - [Crash triage and minimization](#crash-triage-and-minimization)
   - [Testing](#testing)
   - [Results so far](#results-so-far)
-  - [**Bonus: a second target, run for real (parson)**](#bonus-a-second-target-run-for-real-parson)
+  - [Second target: parson](#second-target-parson)
   - [Environment notes](#environment-notes)
   - [Citation](#citation)
 
@@ -231,7 +230,7 @@ PYTHONPATH=src .venv/bin/python scripts/make_loop_report.py \
 It persists five iterations of at most 500 examples each under
 `<artifact-dir>/run-NN-seed-SSSS/iteration-N/` (`prompt.txt`, `proposal.py`,
 `results.jsonl`, and `proposal_error.txt` when a proposal is rejected), which
-mirrors the [parson bonus run](#bonus-a-second-target-run-for-real-parson)'s
+mirrors the [parson run](#second-target-parson)'s
 `artifacts/parson-loop` layout one level down, so the two targets' iteration
 tables are directly comparable via the same
 [`scripts/make_loop_report.py`](scripts/make_loop_report.py) — point it at a run
@@ -420,7 +419,7 @@ report, and aggregate/comparison output are under
 either arm — the measured effect is that LLM-guided refinement reliably
 steers the generator toward grammar-valid input, not toward a memory-safety
 bug in cJSON specifically (see the
-[parson bonus](#bonus-a-second-target-run-for-real-parson) below for where
+[parson run](#second-target-parson) below for where
 this pipeline did go looking for one).
 
 This extends an initial five-run-per-arm pilot
@@ -497,25 +496,22 @@ signatures) before the LLM was ever wired in. They predate and are superseded
 by the table above; kept for provenance, not as a result to draw conclusions
 from.
 
-## Bonus: a second target, run for real (parson)
+## Second target: parson
 
-> **This section goes beyond the project's original scope.** Everything
-> above stands on its own. What follows is additional, self-initiated work: a
-> second pinned target, a second harness, and five real (not simulated)
-> agentic-loop iterations, run specifically to see whether this pipeline
-> could turn up an actual memory-safety bug beyond the core deliverable.
+This section tests whether the pipeline ports to a second pinned target
+(a second harness and five refinement iterations), and whether it turns up a
+memory-safety bug there.
 
-A trial run on [parson](https://github.com/kgabis/parson) (JSON) was reported
-elsewhere to go from 0 crashes to reliable crashes within 5 agentic-loop
-iterations. As a self-initiated extension, this repo stands up parson as a
+This repo stands up [parson](https://github.com/kgabis/parson) (JSON) as a
 second target, reusing
 every pipeline component unchanged (`runner`, `campaign`, `proposal`,
 `refinement`, `triage`, `minimize` are all format/target-agnostic — only a
 new harness and build script were needed), and runs the real refinement loop
-against it, with no LLM API key required: each iteration's strategy was
-authored directly by reasoning over the campaign summary and the target's
-source, in exactly the role `OpenAIProposer` would otherwise play, then
-validated through the same `load_strategy` sandbox and executed through the
+against it with a human in the proposer's role (no LLM call): each
+iteration's strategy was written by reasoning over the campaign summary and
+the target's source code, so these iterations are not black-box. The human
+played exactly the role `OpenAIProposer` would otherwise play; each strategy
+was then validated through the same `load_strategy` sandbox and executed through the
 same `run_campaign`/`run_refinement_loop` code path as a real proposer's
 output would be.
 
@@ -602,7 +598,7 @@ unglamorous, explanation for why targeted structural fuzzing within this
 budget, including five full agentic iterations split across both the parse
 and free paths, did not surface a memory-safety bug in this particular
 pinned commit. In keeping with a policy against fabricating a crash or
-silently pushing past 5 iterations, this bonus run stops here. What's next
+silently pushing past 5 iterations, this run stops here. What's next
 with more budget: (1) drive `json_value_free` through the public mutation
 API (`json_object_remove`/`json_array_remove`/`_replace_*`) rather than only
 the parse-then-free path the black-box harness can reach, and (2) if still
@@ -652,7 +648,7 @@ artifact you used):
 
 ```bibtex
 @software{mansy2026agentic,
-  author  = {Mansy, Ziyad},
+  author  = {Ibrahim, Ziyad Mohammad Mansy},
   title   = {{Agentic Grammar Fuzzing: LLM-Guided Grammar Refinement for Parser Testing}},
   year    = {2026},
   version = {1.1.0},
