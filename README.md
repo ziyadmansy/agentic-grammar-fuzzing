@@ -12,15 +12,13 @@ Overleaf or locally) — see [Results so far](#results-so-far) below for the
 headline numbers, or the paper itself for the full methodology, related
 work, and discussion.
 
-> **Second target:** the repo also runs the full pipeline end-to-end against
-> a second, independent parser ([parson](https://github.com/kgabis/parson)).
-> In that run the pipeline's own LLM proposer (gpt-4.1-mini via the API) was
-> not called: each iteration's strategy was written outside the loop, in an
-> interactive session with an AI coding assistant that could read parson's
-> source, and then validated and executed through exactly the same
-> `load_strategy`/`run_campaign` path a model's output would take. See [Second target: parson](#second-target-parson)
-> for the grammar-adaptation findings, the five campaigns, and the analysis
-> of why no crash was found.
+> **Second target:** a pre-registered replication on a second parser
+> ([parson](https://github.com/kgabis/parson)), with the same LLM proposer and
+> design (15 runs per arm), found the opposite of cJSON: refinement *lowered*
+> acceptance from 95.6% to 92.4% (exact Mann-Whitney p ≈ 0.024), with no crash
+> in 25,500 executions. Every rejected input is explained. See
+> [Second target: parson](#second-target-parson) and
+> [`docs/parson-replication.md`](docs/parson-replication.md).
 
 ## Contents
 
@@ -499,8 +497,29 @@ from.
 
 ## Second target: parson
 
-This section tests whether the pipeline ports to a second pinned target
-(a second harness and five refinement iterations), and whether it turns up a
+**Pre-registered replication (the result reported in the paper).** RQ1's
+design repeated on parson with only the harness changed: 15 seeded runs per
+arm, `gpt-4.1-mini`, protocol committed before any run
+([`docs/parson-replication.md`](docs/parson-replication.md), which also holds
+the full results). Refined acceptance 92.41% vs baseline 95.61% (exact
+two-sided Mann-Whitney p = 0.0235, Cliff's delta -0.48); no crash in 25,500
+executions. parson accepts any bytes after a complete value, so the baseline
+starts near its ceiling, while the refined generators produce grammar-valid
+constructs parson rejects (duplicate keys, unpaired surrogate escapes, numbers
+overflowing a double, `0e5`, NUL in a key), and parson reports no error detail.
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/run_baseline.py --executable build/parson_harness \
+    --artifact-dir artifacts/repeated/parson-baseline-n15 --runs 15 --examples 500 --seed 0
+PYTHONPATH=src .venv/bin/python scripts/run_refinement.py --executable build/parson_harness \
+    --artifact-dir artifacts/repeated/parson-refined-n15 --runs 15 --seed 0
+.venv/bin/python scripts/parson_stats.py artifacts/repeated/parson-baseline-n15 artifacts/repeated/parson-refined-n15
+python3 scripts/parson_rejections.py artifacts/repeated/parson-refined-n15
+```
+
+**Exploratory pilot (August 2026, not part of the statistics).** The rest of
+this section describes an earlier five-iteration pilot, which tested whether
+the pipeline ports to a second pinned target and whether it turns up a
 memory-safety bug there.
 
 This repo stands up [parson](https://github.com/kgabis/parson) (JSON) as a

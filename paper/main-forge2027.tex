@@ -1,23 +1,17 @@
 % Double-anonymous review copy for FORGE 2027 (co-located with ICSE 2027,
-% Dublin). Shares every section file with main.tex; this file only differs
-% in the document class (ACM "Primary Article Template" / acmart, sigconf
-% review anonymous) and the omission of any author-identifying block, per
-% FORGE 2027's double-anonymous review policy. Do not edit content sections
-% here -- edit the shared .tex files instead. Restore a real \author block
-% and switch to the acmart camera-ready options (drop "review,anonymous",
-% add \acmConference, copyright/DOI info) only after acceptance.
-\documentclass[sigconf,review,anonymous]{acmart}
+% Dublin). FORGE 2027 requires the IEEE conference template
+% (\documentclass[10pt,conference]{IEEEtran}, no compsoc/compsocconf).
+% Shares every section file with main.tex; this file only differs in the
+% anonymized author block and artifact link. Do not edit content sections
+% here -- edit the shared .tex files instead. Restore main.tex's real
+% \author block for the camera-ready version after acceptance.
+\documentclass[10pt,conference]{IEEEtran}
 
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
 \usepackage{booktabs}
 \usepackage{tabularx}
-\usepackage{microtype}
-
-\emergencystretch=3em
-
-\settopmatter{printacmref=false}
-\renewcommand\footnotetextcopyrightpermission[1]{}
-\pagestyle{plain}
-
 \hypersetup{pdfauthor={},pdftitle={Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators}}
 
 % Anonymized artifact mirror -- do not point this at the real GitHub URL,
@@ -26,21 +20,22 @@
 
 \title{Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators}
 
-\author{Anonymous Author(s)}
-\affiliation{%
-  \institution{Submission under double-anonymous review}
-  \country{}
+\author{
+\IEEEauthorblockN{Anonymous Author(s)}
+\IEEEauthorblockA{Submission under double-anonymous review}
 }
 
 \begin{document}
+
+\maketitle
 
 \begin{abstract}
 \input{abstract}
 \end{abstract}
 
-\keywords{fuzzing, grammar-based testing, property-based testing, large language models, black-box testing, software testing}
-
-\maketitle
+\begin{IEEEkeywords}
+fuzzing, grammar-based testing, property-based testing, large language models, black-box testing, software testing
+\end{IEEEkeywords}
 
 \input{introduction}
 \input{related_work}
@@ -49,7 +44,9 @@
 \input{discussion}
 \input{conclusion}
 
-\bibliographystyle{ACM-Reference-Format}
+\input{acknowledgment}
+
+\bibliographystyle{IEEEtran}
 \bibliography{references}
 
 \end{document}

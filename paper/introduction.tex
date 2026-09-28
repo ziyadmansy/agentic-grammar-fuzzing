@@ -55,9 +55,9 @@ disallowed imports and calls, and sanity-checked that it actually produces
 well-formed output -- before it is ever run against the target binary.
 
 We evaluate this pipeline with a seeded, fifteen-run-per-arm comparison
-against a static baseline generator; separately, by reusing the entire
-pipeline, unmodified, against a second, independent parser (parson) to test
-whether the approach generalizes beyond one target and one set of grammar
+against a static baseline generator; with a pre-registered replication of
+that comparison on a second, independent parser (parson), to test whether
+the effect generalizes beyond one target and one set of grammar
 adaptations; and with a smaller ablation over which subset of the proxy
 signal is exposed to the proposer. Concretely, this paper contributes:
 
@@ -77,11 +77,13 @@ signal is exposed to the proposer. Concretely, this paper contributes:
     signatures are reported as descriptive signals, with explicit caveats
     that unequal per-arm budgets prevent direct comparison of their
     aggregate counts.
-  \item A second, independently run target (parson), reusing every pipeline
-    component unchanged, including five real refinement iterations and an
-    honestly argued negative result -- no crash found across 3{,}000
-    sanitizer-instrumented executions -- supported by manual review of the
-    highest-risk code paths rather than left as an unexplained absence.
+  \item A pre-registered, fifteen-run-per-arm replication on a second
+    parser (parson) in which refinement significantly \emph{lowers}
+    acceptance (95.6\% to 92.4\%, $p \approx 0.024$), with every rejected
+    input traced to its cause: parson's leniency toward trailing bytes
+    leaves the baseline near its ceiling, while the refined generators
+    produce grammar-valid constructs that parson rejects without reporting
+    why. No crash occurred in 25{,}500 sanitizer-instrumented executions.
   \item A feedback-signal ablation isolating which subset of the proxy
     signal drives the improvement: exposing only acceptance/rejection
     counts, counts plus rejection signatures, or the full signal all raise
@@ -104,7 +106,7 @@ The rest of the paper is organized as follows. Section~\ref{sec:related-work}
 situates this work relative to coverage-guided, grammar-based, and
 LLM-assisted fuzzing. Section~\ref{sec:methodology} describes the pipeline,
 the proxy signal, and the sandboxing of LLM-proposed generators in detail.
-Section~\ref{sec:evaluation} reports the cJSON comparison and the parson
-bonus target. Section~\ref{sec:discussion} discusses limitations, threats to
+Section~\ref{sec:evaluation} reports the cJSON comparison, the parson
+replication, and the feedback ablation. Section~\ref{sec:discussion} discusses limitations, threats to
 validity, and what the negative result on parson does and does not show.
 Section~\ref{sec:conclusion} concludes.

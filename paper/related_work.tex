@@ -52,8 +52,13 @@ from it. CodaMOSA~\cite{lemieux2023codamosa} takes a related but distinct
 approach for unit-test generation: search-based test generation runs until
 coverage plateaus, at which point an LLM is asked for example test cases to
 help the search escape the plateau -- i.e., the LLM is invoked \emph{because}
-coverage feedback is available and has stalled. Our setting differs from all
-three along the same axis: we assume no coverage signal is available at any
+coverage feedback is available and has stalled. Closest to our loop,
+G2Fuzz~\cite{zhang2025g2fuzz} has an LLM synthesize and mutate input
+generators for non-textual formats and pairs them with a coverage-guided
+mutation fuzzer, and ELFuzz~\cite{chen2025elfuzz} evolves generation-based
+fuzzers with an LLM under coverage guidance. Both revise generators, as we
+do, but select them by coverage. Our setting differs from all of these
+along the same axis: we assume no coverage signal is available at any
 point, only the parser's own accept/reject decision and sanitizer output,
 and the LLM's job is not to produce one-off inputs or test cases but to
 revise a reusable, executable \emph{generator} against a formal grammar it is
@@ -65,7 +70,8 @@ and fourth lines above: like Superion and Nautilus, it uses a grammar to
 keep generated inputs structurally valid; unlike them, it has no coverage
 instrumentation to fall back on, and unlike TitanFuzz, Fuzz4All, and
 CodaMOSA, the LLM never sees coverage data, execution traces, or usage
-examples -- only the grammar text and the same three black-box proxies
+examples, and unlike G2Fuzz and ELFuzz, no coverage signal decides which
+generator survives -- only the grammar text and the same three black-box proxies
 (acceptance rate, structural diversity, rejection signatures) a human
 maintaining a Hypothesis strategy by hand would have to reason about
 manually.

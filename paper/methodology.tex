@@ -5,9 +5,10 @@
 This paper asks three questions. \textbf{RQ1:} using only black-box,
 coverage-free feedback, does LLM-guided refinement of a grammar-based
 generator improve that generator's acceptance rate and structural diversity
-relative to a static baseline, on a fixed target? \textbf{RQ2:} does the
-pipeline -- harness contract, proxy signal, refinement loop, and sandbox --
-generalize to a second, independently adapted target without modification?
+relative to a static baseline, on a fixed target? \textbf{RQ2:} run
+unmodified except for the harness, does the pipeline carry over to a second,
+independently implemented parser, and does RQ1's acceptance-rate effect
+replicate there?
 \textbf{RQ3:} of the three coverage-free proxies exposed to the proposer,
 does the specific subset shown -- counts alone, counts with rejection
 signatures, or the full signal -- change how effectively refinement raises
@@ -93,14 +94,12 @@ execution trace, or source excerpt is ever included in the prompt.
 Each iteration builds a prompt containing the grammar text and a summary of
 the previous iteration's campaign (outcome counts, unique input lengths,
 unique structural fingerprints, unique rejection signatures), and sends it
-to a proposer -- an LLM in the live configuration, or, for the parson
-generalization test, a human reasoning over the same summary and playing
-the identical role (Section~\ref{sec:evaluation}). The proposer must return
+to the LLM proposer. The proposer must return
 a single Python function, \texttt{generated\_json}, decorated with
 Hypothesis's \texttt{@st.composite} and built from \texttt{st.*}
 combinators, so that recursive structure is expressed the same way a
-human-authored Hypothesis strategy would express it. The official run uses
-\texttt{gpt-4.1-mini} at temperature 0.2 as the proposer.
+human-authored Hypothesis strategy would express it. Every reported run
+uses \texttt{gpt-4.1-mini} at temperature 0.2 as the proposer.
 
 \subsection{Sandboxing untrusted, LLM-authored code}
 Because the proposer's output is executable Python that this pipeline runs
@@ -175,13 +174,14 @@ five refinement iterations of up to 500 examples. We report acceptance
 rate, structural fingerprints, and rejection signatures per trial. We compare
 the arms statistically only on acceptance rate, the scale-free outcome; the
 count-based metrics are retained as descriptive feedback signals because the
-two arms execute different total numbers of inputs. For RQ2, we run the
-identical pipeline, entirely unmodified, against parson for five real
-iterations, with a human reasoning over each iteration's campaign summary
-in the proposer's role and every resulting proposal passing through the
-same \texttt{load\_strategy} validation and \texttt{run\_campaign} execution
-path a model's output would take; this substitutes for a live API call
-without altering any other part of the pipeline being tested. For RQ3, we
+two arms execute different total numbers of inputs. For RQ2, we repeat RQ1's
+design on parson exactly -- fifteen seeded runs per arm, seeds 0--14, the
+same baseline, proposer, budget, and feedback -- with only the harness
+changed. The protocol, the primary test (exact two-sided Mann--Whitney U on
+per-run acceptance rate), and the reporting rules were committed to the
+artifact before any run. An earlier exploratory pilot on parson, whose
+proposals were written outside the loop, is reported separately
+(Section~\ref{sec:evaluation-parson-pilot}). For RQ3, we
 repeat the RQ1 refined-arm recipe under each of the three feedback modes in
 Section~\ref{sec:proxy-signal} (\texttt{counts}, \texttt{counts+rejections},
 \texttt{full}), five seeded trials (seeds 0--4) per mode against the same
