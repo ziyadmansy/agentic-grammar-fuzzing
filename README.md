@@ -669,7 +669,7 @@ artifact you used):
 ```bibtex
 @software{mansy2026agentic,
   author  = {Ibrahim, Ziyad Mohammad Mansy},
-  title   = {{Agentic Grammar Fuzzing: LLM-Guided Grammar Refinement for Parser Testing}},
+  title   = {{Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators (software artifact)}},
   year    = {2026},
   version = {1.1.0},
   doi     = {10.5281/zenodo.22231288},

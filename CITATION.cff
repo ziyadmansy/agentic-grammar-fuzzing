@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "Agentic Grammar Fuzzing: LLM-Guided Grammar Refinement for Parser Testing"
+title: "Coverage-Free Fuzzing: LLM-Guided Refinement of Grammar-Based Test Generators (software artifact)"
 message: "If you use this repository in your research, please cite it using the metadata below."
 type: software
 
