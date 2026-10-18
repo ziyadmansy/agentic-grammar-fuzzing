@@ -36,77 +36,68 @@ fuzzing is only useful in practice if it can run under exactly this
 constraint: black-box, with no coverage signal available.
 
 This paper asks a narrow, empirical question under that constraint: given
-only a formal grammar and the kind of feedback a black-box harness can
-actually produce -- whether an input was accepted or rejected, what the
-parser's own rejection reason was, and whether a sanitizer fired -- can a
-large language model (LLM) act as an effective iterative refiner of a
-grammar-based generator, without ever seeing which lines of the target ran?
-We answer it by building a complete pipeline around the cJSON parser
-(pinned at v1.7.19) and an ANTLR-derived JSON grammar: a
-sanitizer-instrumented harness classifies every generated input as accepted, rejected,
-or crashing; a campaign layer reduces a run of the harness to three
-observable, coverage-free proxies -- acceptance rate, the number of
-distinct structural shapes produced, and the number of distinct rejection
-reasons seen -- and a refinement loop feeds those proxies, together with the
-grammar text, back to an LLM each iteration and asks it to propose a revised
-Hypothesis strategy. Because the proposer is an LLM and its output is
-executable code, every proposal is statically validated -- AST-checked for
-disallowed imports and calls, and sanity-checked that it actually produces
-well-formed output -- before it is ever run against the target binary.
+only a formal grammar and the feedback a black-box harness can produce --
+counts of accepted, rejected, and crashing inputs, the number of distinct
+input shapes, and the number of distinct rejection messages -- what does a
+large language model (LLM) contribute as the author and reviser of a
+grammar-based generator, and how much of that contribution comes from the
+feedback? We build a complete pipeline around the cJSON parser (pinned at
+v1.7.19) and the ANTLR grammars-v4 JSON grammar. A sanitizer-instrumented
+harness classifies every input as accepted, rejected, or crashing; a
+refinement loop gives the LLM the grammar and these counts each iteration
+and asks for a new Hypothesis generator. Because the LLM's output is
+executable code, every proposal is AST-checked for disallowed imports and
+calls and must produce well-formed output before it runs against the
+target.
 
-We evaluate this pipeline with a seeded, fifteen-run-per-arm comparison
-against a static baseline generator; with a pre-registered replication of
-that comparison on a second, independent parser (parson), to test whether
-the effect generalizes beyond one target and one set of grammar
-adaptations; and with a smaller ablation over which subset of the proxy
-signal is exposed to the proposer. Concretely, this paper contributes:
+We evaluate the pipeline with a seeded, fifteen-run comparison against a
+static baseline; with a pre-registered control arm that withholds every
+campaign result from the prompt, to separate what the model brings from
+what the feedback adds; with a pre-registered replication on a second,
+independent parser (parson); and with a smaller ablation over which counts
+the LLM sees. Concretely, this paper contributes:
 
 \begin{itemize}
-  \item A black-box, coverage-free feedback design -- acceptance rate,
-    structural diversity, and rejection signatures -- shown sufficient to
-    steer LLM-driven refinement of a grammar-based generator without any
-    coverage instrumentation.
-  \item A pipeline that treats LLM-authored code as untrusted by
-    construction: every proposed generator is statically sandboxed and
-    behaviorally sanity-checked before it ever executes against a real
-    target, independent of which LLM produced it.
-  \item A seeded, reproducible, fifteen-run-per-arm empirical comparison
-    showing that refinement raises mean acceptance rate from 58.2\% to
-    97.1\% relative to a static baseline on the same target, with complete
-    rank separation between arms. Structural fingerprints and rejection
-    signatures are reported as descriptive signals, with explicit caveats
-    that unequal per-arm budgets prevent direct comparison of their
-    aggregate counts.
-  \item A pre-registered, fifteen-run-per-arm replication on a second
-    parser (parson) in which refinement significantly \emph{lowers}
-    acceptance (95.6\% to 92.4\%, $p \approx 0.024$), with every rejected
-    input traced to its cause: parson's leniency toward trailing bytes
-    leaves the baseline near its ceiling, while the refined generators
-    produce grammar-valid constructs that parson rejects without reporting
-    why. No crash occurred in 25{,}500 sanitizer-instrumented executions.
-  \item A feedback-signal ablation isolating which subset of the proxy
-    signal drives the improvement: exposing only acceptance/rejection
-    counts, counts plus rejection signatures, or the full signal all raise
-    acceptance rate by a broadly similar amount, while the full signal
-    preserves visibly more rejection-signature diversity than counts alone
-    -- a small-sample (four runs per condition), descriptive result, not a
-    tested effect.
-  \item An empirical account of grammar-implementation mismatches across
-    both targets under one shared formal grammar -- for example, duplicate
-    JSON object keys accepted by cJSON and rejected outright by parson --
-    which we argue are themselves a source of fuzzing-relevant signal that
-    a purely formal grammar specification cannot supply on its own.
-  \item Reproducibility tooling for the generated-input stream specifically
-    (a seeding shim over Hypothesis's internal random state, per-run
-    manifests, and hash-identified harness binaries), together with an
-    explicit statement of what that reproducibility does and does not cover.
+  \item A coverage-free pipeline in which an LLM writes and revises
+    grammar-based Hypothesis generators against a black-box,
+    sanitizer-instrumented target, treating every proposal as untrusted
+    code: it is statically sandboxed and behaviorally checked before it
+    runs.
+  \item A controlled answer to what the loop's gain consists of. Over
+    fifteen seeded runs, the LLM's generators raise acceptance on cJSON from
+    58.2\% to 97.1\%, but a pre-registered arm without any feedback is
+    statistically indistinguishable (92.9\%, $p \approx 0.95$, Cliff's
+    $\delta = -0.02$). The gain comes from the model writing a valid
+    generator from the grammar; the static baseline's valid half alone
+    accepts every input. In an exploratory analysis, feedback's one effect
+    is fewer proposals that fail to run (29 against 52 of 75).
+  \item A pre-registered replication on parson in which the loop
+    significantly \emph{lowers} acceptance (95.6\% to 92.4\%,
+    $p \approx 0.024$), with every rejected input traced to its cause. 614
+    of the 1{,}063 rejected inputs contain constructs a conformance
+    suite~\cite{seriot2016jsontestsuite} says a parser must accept: the
+    generators reached where parson departs from the standard, and the
+    acceptance score counted it as failure. No crash occurred in 25{,}500
+    sanitizer-instrumented executions.
+  \item A feedback ablation consistent with the control: counts alone,
+    counts with the number of rejection signatures, and the full summary
+    reach similar acceptance (four usable runs each; descriptive).
+  \item An account of grammar--implementation mismatches under one shared
+    grammar -- for example, duplicate object keys accepted by cJSON and
+    rejected by parson -- and of what feedback would need to carry to use
+    them: why an input failed, not only how many did.
+  \item Reproducibility tooling for the generated-input stream (a seeding
+    shim over Hypothesis's internal random state, per-run manifests, and
+    hash-identified harness binaries, with a replay check across a
+    toolchain rebuild), and an explicit statement of what it does not
+    cover.
 \end{itemize}
 
 The rest of the paper is organized as follows. Section~\ref{sec:related-work}
 situates this work relative to coverage-guided, grammar-based, and
 LLM-assisted fuzzing. Section~\ref{sec:methodology} describes the pipeline,
 the proxy signal, and the sandboxing of LLM-proposed generators in detail.
-Section~\ref{sec:evaluation} reports the cJSON comparison, the parson
-replication, and the feedback ablation. Section~\ref{sec:discussion} discusses limitations, threats to
+Section~\ref{sec:evaluation} reports the cJSON comparison and its
+no-feedback control, the parson replication, and the feedback ablation. Section~\ref{sec:discussion} discusses limitations, threats to
 validity, and what the negative result on parson does and does not show.
 Section~\ref{sec:conclusion} concludes.

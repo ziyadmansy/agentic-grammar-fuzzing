@@ -2,17 +2,18 @@
 \label{sec:methodology}
 
 \subsection{Research questions}
-This paper asks three questions. \textbf{RQ1:} using only black-box,
-coverage-free feedback, does LLM-guided refinement of a grammar-based
-generator improve that generator's acceptance rate and structural diversity
-relative to a static baseline, on a fixed target? \textbf{RQ2:} run
+This paper asks three questions. \textbf{RQ1:} on a fixed target, do
+LLM-written generators refined with black-box, coverage-free feedback raise
+acceptance relative to a static baseline, and how much of any gain is due
+to the feedback rather than to the model's ability to write a generator
+from the grammar alone? \textbf{RQ2:} run
 unmodified except for the harness, does the pipeline carry over to a second,
 independently implemented parser, and does RQ1's acceptance-rate effect
 replicate there?
 \textbf{RQ3:} of the three coverage-free proxies exposed to the proposer,
 does the specific subset shown -- counts alone, counts with rejection
-signatures, or the full signal -- change how effectively refinement raises
-acceptance rate?
+signatures, or the full signal -- change the acceptance the loop
+reaches?
 
 \subsection{Target, grammar, and harness}
 The primary target is cJSON~\cite{gamble2024cjson}, pinned at v1.7.19
@@ -57,14 +58,15 @@ denial-of-service bug in its own right.
 
 \subsection{A coverage-free proxy signal}
 \label{sec:proxy-signal}
-With no coverage instrumentation, refinement is steered by three signals
+With no coverage instrumentation, the loop's feedback consists of three signals
 computed purely from a campaign's classified outcomes:
 
 \begin{itemize}
   \item \textbf{Acceptance rate} -- the fraction of inputs classified
     \texttt{accepted}. A generator accepting close to 0\% of its own output
     is testing only the rejection path, not the parser's structural
-    handling of valid input, and is flagged for correction.
+    handling of valid input; acceptance tells the loop how much of its
+    output reaches the parser's valid-input logic.
   \item \textbf{Structural diversity} -- the count of distinct
     \emph{structural fingerprints} seen in a campaign. A fingerprint maps
     each byte of an input to one of six symbols (the six structural
@@ -82,19 +84,23 @@ computed purely from a campaign's classified outcomes:
     deliberate accuracy/cost tradeoff and is stated as a limitation in
     Section~\ref{sec:discussion}.
   \item \textbf{Rejection signatures} -- the count of distinct parser
-    rejection messages and offsets seen, used to tell the proposer which
-    malformed shapes are already well covered versus unexplored.
+    rejection messages and offsets seen. The proposer receives only this
+    count, never the messages themselves.
 \end{itemize}
 
 These three numbers, plus outcome counts and unique input lengths, are the
-entire feedback surface exposed to the LLM each iteration; no coverage data,
-execution trace, or source excerpt is ever included in the prompt.
+entire feedback surface exposed to the LLM each iteration, as one JSON object
+of integers; no rejection message, example input, coverage data, execution
+trace, or source excerpt is ever included in the prompt.
 
 \subsection{Refinement loop}
 Each iteration builds a prompt containing the grammar text and a summary of
-the previous iteration's campaign (outcome counts, unique input lengths,
-unique structural fingerprints, unique rejection signatures), and sends it
-to the LLM proposer. The proposer must return
+the most recent campaign that produced data (outcome counts, unique input
+lengths, unique structural fingerprints, unique rejection signatures), and
+sends it to the LLM proposer. The first iteration has no campaign yet, so its
+summary is all zeros, and the prompt never includes a previous generator's
+source: each iteration writes a new generator from the grammar and the
+numbers. When a proposal fails, the next prompt also carries its error text. The proposer must return
 a single Python function, \texttt{generated\_json}, decorated with
 Hypothesis's \texttt{@st.composite} and built from \texttt{st.*}
 combinators, so that recursive structure is expressed the same way a
@@ -167,14 +173,34 @@ seed), to wall-clock-dependent timeout classification, or to the harness
 binary's bit-for-bit identity across hosts and toolchains.
 
 \subsection{Experimental design}
-For RQ1, we run fifteen independent, seeded trials (seeds 0--14) of a static
+The static baseline alternates two hand-written Hypothesis strategies. The
+first draws a bounded JSON value (null, booleans, integers, finite floats,
+strings, and nested arrays and objects with at most 32 leaves) and serializes
+it with Python's \texttt{json.dumps}. The second appends one suffix to such a
+document: a comma, a closing bracket or brace, the word
+\texttt{\textvisiblespace trailing}, or a NUL byte. Half of the baseline's inputs are thus malformed
+by design, to exercise rejection paths. On cJSON, whose full-buffer entry point
+accepts only the NUL suffix, this bounds the baseline's acceptance near 60\%.
+For RQ1, we run fifteen independent, seeded trials (seeds 0--14) of this static
 baseline generator and fifteen independent, seeded trials of the LLM-refined
 loop against the same pinned cJSON build, each trial consisting of up to
 five refinement iterations of up to 500 examples. We report acceptance
 rate, structural fingerprints, and rejection signatures per trial. We compare
 the arms statistically only on acceptance rate, the scale-free outcome; the
 count-based metrics are retained as descriptive feedback signals because the
-two arms execute different total numbers of inputs. For RQ2, we repeat RQ1's
+two arms execute different total numbers of inputs. Two further arms, whose
+protocol and decision rules were committed before they ran, separate the
+model from the feedback. In the \emph{no-feedback} arm (seeds 0--14), every
+iteration receives the prompt the refined arm's first iteration received --
+the grammar and an all-zero summary, with no previous error -- so no campaign
+result ever reaches the LLM; all fifteen committed first prompts of the
+refined arm are byte-identical to it. Its primary test is the refined arm
+against it, with ``no detectable effect'' claimed only if $p \geq 0.05$ and
+$|\delta| < 0.33$. The \emph{valid-half} baseline draws every input from the
+static baseline's grammar-valid strategy. Because the original harness
+binary no longer loaded after a toolchain upgrade, both arms ran on a
+rebuild (Homebrew clang 23.1), which replayed all 7{,}500 seeded baseline
+inputs with identical outcomes. For RQ2, we repeat RQ1's
 design on parson exactly -- fifteen seeded runs per arm, seeds 0--14, the
 same baseline, proposer, budget, and feedback -- with only the harness
 changed. The protocol, the primary test (exact two-sided Mann--Whitney U on
@@ -186,7 +212,7 @@ repeat the RQ1 refined-arm recipe under each of the three feedback modes in
 Section~\ref{sec:proxy-signal} (\texttt{counts}, \texttt{counts+rejections},
 \texttt{full}), five seeded trials (seeds 0--4) per mode against the same
 cJSON build. In one trial per mode, every one of the five iterations
-produced an LLM proposal that failed sandbox validation, leaving that trial
+produced an LLM proposal that failed validation, leaving that trial
 with no executed inputs; following the same
 \texttt{iterations\_with\_data} convention used throughout, these three
 trials are excluded, leaving four usable trials per mode.
