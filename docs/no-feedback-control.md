@@ -69,4 +69,35 @@ construction.
 
 ## Results
 
-(appended after the runs)
+**Binary equivalence (2026-10-19, before any LLM call).** The rebuilt harness
+(Homebrew clang 23.1.0, SHA-256 `702d5200…a5235`) replayed the seeded n=15
+baseline. All 7,500 records match `artifacts/repeated/cjson-baseline-n15` in
+input bytes and outcome (0 differ).
+
+**Arm results (2026-10-19, all 15 pre-registered runs, no protocol changes).**
+No run was repeated: every failed proposal is an ordinary code error (mostly
+Hypothesis API misuse, as in the refined arm), and no API or harness failure
+occurred. Analysis: `scripts/nofeedback_stats.py` with the four arm directories.
+
+| Arm | Runs with data | Mean acceptance (sd) | Rejected inputs | Shapes per 500-input iteration | Failed proposals |
+|---|---|---|---|---|---|
+| Static baseline | 15/15 | 58.21% (1.30) | 41.79% | 274.5 | – |
+| Valid-half baseline | 15/15 | 100.00% (0.00) | 0.00% | 251.0 | – |
+| Refined, feedback `full` (A) | 15/15 | 97.07% (2.93) | 1.95% | 195.1 | 29 of 75 |
+| No feedback (B) | 14/15 | 92.95% (15.53) | 3.23% | 174.0 | 52 of 75 |
+
+Per-run acceptance, no feedback: 40.0, 95.1, 96.6, 91.6, 96.2, 94.33, (no
+data: all 5 proposals failed), 100.0, 99.8, 91.4, 100.0, 100.0, 99.0, 97.8, 99.4.
+The 40.0% run's only working generator emitted 193 unencodable strings (lone
+surrogates), which count as not accepted.
+
+- **Primary (A vs B):** +4.13 pp, exact two-sided Mann–Whitney U = 103.0,
+  p = 0.949, Cliff's δ = −0.02. By the rule above (p ≥ 0.05, |δ| < 0.33): no
+  detectable effect of feedback on acceptance at n=15. The acceptance gain over
+  the static baseline is attributed to the proposer's feedback-free generators.
+- **Secondary (B vs static baseline):** +34.73 pp, U = 195.0, p = 1.76e-05, δ = +0.86.
+- **Exploratory (not pre-registered):** failed proposals per run, A vs B (1–3 vs
+  1–5 of 5), exact two-sided Mann–Whitney p = 0.0005. The refined arm's prompt
+  carries both the campaign metrics and the previous error text, so this arm
+  cannot separate the two; since the failures are code errors, the error text is
+  the plausible cause.
