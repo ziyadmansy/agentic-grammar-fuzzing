@@ -10,7 +10,7 @@ from openai import OpenAI
 
 from agentic_fuzzing.experiment import run_directory, write_summary
 from agentic_fuzzing.llm import OpenAIProposer
-from agentic_fuzzing.refinement import DEFAULT_FEEDBACK_MODE, FEEDBACK_MODES, run_refinement_loop
+from agentic_fuzzing.refinement import DEFAULT_FEEDBACK_MODE, FEEDBACK_MODES, NO_FEEDBACK_MODE, run_refinement_loop
 from agentic_fuzzing.reproducibility import build_report, write_report
 from agentic_fuzzing.seeding import build_manifest, resolved_arguments, seed_everything, write_manifest
 
@@ -33,9 +33,10 @@ def main() -> None:
     parser.add_argument("--overwrite", action="store_true", help="allow writing into a non-empty run directory")
     parser.add_argument(
         "--feedback",
-        choices=sorted(FEEDBACK_MODES),
+        choices=sorted([*FEEDBACK_MODES, NO_FEEDBACK_MODE]),
         default=DEFAULT_FEEDBACK_MODE,
-        help="parser-feedback ablation: which campaign metrics the prompt exposes",
+        help="parser-feedback ablation: which campaign metrics the prompt exposes "
+        f"({NO_FEEDBACK_MODE!r}: none, every prompt is the first iteration's)",
     )
     args = parser.parse_args()
 

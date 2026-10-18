@@ -5,6 +5,7 @@ import pytest
 
 from agentic_fuzzing.refinement import (
     CampaignSummary,
+    NO_FEEDBACK_MODE,
     build_refinement_prompt,
     run_refinement_loop,
 )
@@ -112,3 +113,31 @@ def test_refinement_loop_carries_forward_last_good_summary_across_rejection(tmp_
     assert "proposal_rejected" not in iteration_3_prompt
     # and it must see iteration 2's exact failure text
     assert error_text in iteration_3_prompt
+
+def test_no_feedback_mode_repeats_the_first_prompt_and_drops_errors(tmp_path) -> None:
+    grammar_path = tmp_path / "JSON.g4"
+    grammar_path.write_text("json : value EOF ;", encoding="utf-8")
+    good_source = (
+        "from hypothesis import strategies as st\n"
+        "@st.composite\n"
+        "def generated_json(draw):\n"
+        "    return draw(st.just(b'{}'))\n"
+    )
+    broken_source = "def generated_json():\n    return b'{}'\n"
+    calls = iter([good_source, broken_source, good_source])
+
+    run_refinement_loop(
+        sys.executable,
+        grammar_path,
+        lambda prompt: next(calls),
+        tmp_path / "iterations",
+        iterations=3,
+        examples_per_iteration=2,
+        timeout_seconds=1,
+        feedback_mode=NO_FEEDBACK_MODE,
+    )
+
+    first_full_prompt = build_refinement_prompt("json : value EOF ;", CampaignSummary(Counter(), 0, 0, 0, 0))
+    for index in (1, 2, 3):
+        prompt = (tmp_path / f"iterations/iteration-{index}/prompt.txt").read_text(encoding="utf-8")
+        assert prompt == first_full_prompt

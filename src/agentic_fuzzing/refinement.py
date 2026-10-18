@@ -52,6 +52,10 @@ FEEDBACK_MODES = {
     "full": ("counts", "total", "unique_lengths", "unique_structures", "unique_rejections"),
 }
 DEFAULT_FEEDBACK_MODE = "full"
+# Control arm (docs/no-feedback-control.md): every iteration gets the prompt the
+# refined arm's first iteration got -- grammar, an all-zero metrics object, no
+# previous error -- so no campaign result ever reaches the proposer.
+NO_FEEDBACK_MODE = "no-feedback"
 
 
 def build_refinement_prompt(
@@ -108,7 +112,10 @@ def run_refinement_loop(
     last_good = CampaignSummary(Counter(), 0, 0, 0, 0)
     last_error: str | None = None
     for iteration in range(min(iterations, 5)):
-        prompt = build_refinement_prompt(grammar, last_good, last_error, feedback_mode)
+        if feedback_mode == NO_FEEDBACK_MODE:
+            prompt = build_refinement_prompt(grammar, CampaignSummary(Counter(), 0, 0, 0, 0), None, DEFAULT_FEEDBACK_MODE)
+        else:
+            prompt = build_refinement_prompt(grammar, last_good, last_error, feedback_mode)
         proposal = proposer(prompt)
         iteration_dir = artifact_dir / f"iteration-{iteration + 1}"
         iteration_dir.mkdir(parents=True, exist_ok=True)
