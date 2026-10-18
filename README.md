@@ -12,6 +12,14 @@ locally) — see [Results so far](#results-so-far) below for the headline
 numbers, or the paper itself for the full methodology, related work, and
 discussion.
 
+> **Key result (controlled):** a pre-registered no-feedback arm, whose every
+> prompt is the refined arm's first prompt, is statistically indistinguishable
+> from the refined arm on acceptance (92.95% vs 97.07%, p ≈ 0.95, Cliff's
+> δ = −0.02). The gain over the static baseline (58.21%) comes from the LLM
+> writing a valid generator from the grammar, not from the count feedback; the
+> baseline's valid half alone accepts 100%. See
+> [`docs/no-feedback-control.md`](docs/no-feedback-control.md).
+
 > **Second target:** a pre-registered replication on a second parser
 > ([parson](https://github.com/kgabis/parson)), with the same LLM proposer and
 > design (15 runs per arm), found the opposite of cJSON: refinement *lowered*
@@ -237,25 +245,26 @@ directory for a repeated run, or at `artifacts/cjson-loop` for the committed
 official run. Running it requires an `OPENAI_API_KEY` with API access; none is
 bundled with this repo.
 
-**Proxy signal.** With no coverage instrumentation, refinement is steered by
-three observable, parser-level proxies instead:
+**Proxy signal.** With no coverage instrumentation, the loop's feedback is
+three observable, parser-level counts instead:
 
 - **Acceptance rate** (`accepted` vs `rejected` vs `crash`/`timeout`) — a
   generator accepted near 0% of the time is testing the rejection path only,
-  not the parser's structural handling, and is flagged for correction.
+  not the parser's structural handling.
 - **Structural diversity** — the number of distinct shape fingerprints
   (`{`, `}`, `[`, `]`, `:`, `,`, digit, string-quote, whitespace, other,
   computed by [`_structure`](src/agentic_fuzzing/campaign.py)) seen across a
   campaign, used as a cheap proxy for "how many different grammar shapes has
   this generator actually produced" absent real coverage data.
-- **Rejection signatures** — the distinct parser rejection messages/offsets
-  seen, used to tell the LLM which malformed shapes are already well covered
-  versus unexplored.
+- **Rejection signatures** — the number of distinct parser rejection
+  messages/offsets seen. The LLM receives only this count, never the messages.
 
-These three numbers are the entire feedback signal handed back to the LLM
-each iteration; the prompt explicitly asks it to steer away from
-mostly-rejected productions and toward structurally novel, deeply nested, or
-previously-uncrashed shapes.
+These numbers, as one JSON object of integers, are the entire feedback handed
+back to the LLM each iteration, together with the previous proposal's error
+text if it failed. The prompt never includes the previous generator's source,
+and the first iteration's metrics are all zero. The prompt asks for a bounded
+generator that preserves valid and near-valid cases
+(`build_refinement_prompt` in [`refinement.py`](src/agentic_fuzzing/refinement.py)).
 
 ## Repeated experiments and reproducibility
 
@@ -415,11 +424,29 @@ scale-free metric specifically (not claimed for the two count-based rows,
 which are descriptive and not tested). Every run's manifest, reproducibility
 report, and aggregate/comparison output are under
 `artifacts/repeated/cjson-{baseline,refined}-n15/`. No crashes were found in
-either arm — the measured effect is that LLM-guided refinement reliably
-steers the generator toward grammar-valid input, not toward a memory-safety
-bug in cJSON specifically (see the
+either arm — the measured effect concerns generator validity, not a
+memory-safety bug in cJSON (see the
 [parson run](#second-target-parson) below for where
 this pipeline did go looking for one).
+
+**No-feedback control (pre-registered, n = 15 per arm).** Protocol, decision
+rules and results in [`docs/no-feedback-control.md`](docs/no-feedback-control.md),
+analysis in `scripts/nofeedback_stats.py`:
+
+| Arm | Acceptance, mean (sd) | Rejected inputs | Shapes per 500 inputs | Failed proposals |
+|---|---:|---:|---:|---:|
+| Static baseline | 58.21% (1.30) | 41.79% | 274.5 | – |
+| Valid half of the baseline only | 100.00% (0.00) | 0.00% | 251.0 | – |
+| LLM, with feedback (refined) | 97.07% (2.93) | 1.95% | 195.1 | 29 of 75 |
+| LLM, no feedback (14/15 runs with data) | 92.95% (15.53) | 3.23% | 174.0 | 52 of 75 |
+
+Refined vs no feedback: exact two-sided Mann-Whitney p = 0.949, Cliff's
+δ = −0.02, so no detectable effect of feedback on acceptance. Exploratory: the
+refined arm loses fewer proposals (p ≈ 0.0005), plausibly through the error
+text its prompt carries. The table above (static vs refined) therefore
+measures the LLM's feedback-free generators against a baseline that is half
+malformed by design, and the summed fingerprint counts in it reflect budget,
+not diversity: per 500 inputs, the refined generators produce fewer shapes.
 
 This extends an initial five-run-per-arm pilot
 ([artifacts/final/comparison.md](artifacts/final/comparison.md), 57.64% ->
