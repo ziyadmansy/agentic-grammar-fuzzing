@@ -1,68 +1,86 @@
 \section{Evaluation}
 \label{sec:evaluation}
 
-\subsection{RQ1: cJSON, baseline versus LLM-refined}
+\subsection{RQ1: cJSON, and what the feedback adds}
 
-Table~\ref{tab:cjson-comparison} reports the fifteen-seeded-run-per-arm
-comparison described in Section~\ref{sec:methodology} -- an extension of an
-initial five-run-per-arm pilot to a larger sample, run identically. Every
-refined-arm run has a higher acceptance rate than every baseline-arm run.
-Since acceptance rate is scale-free, this arm-level comparison remains
-interpretable despite the different numbers of executed inputs. All fifteen
-observations have complete rank separation, giving an exact two-sided
-permutation \emph{p}-value of $2/\binom{30}{15} \approx 1.29\times10^{-8}$
-for this run-level comparison. This is the smallest attainable exact
-\emph{p}-value for a design with $n{=}15$ per arm, and, as with the smaller
-pilot, should be read as the strongest separation this design can report
-rather than as a precisely estimated population effect. Structural
-fingerprints and rejection signatures remain useful feedback signals, but
-their aggregate counts are not tested as arm-level effects because the
-refined runs execute more iterations.
+Table~\ref{tab:cjson-comparison} and Fig.~\ref{fig:acceptance-strip} report
+the four cJSON arms, fifteen seeded runs each. The refined loop raises
+acceptance from the static baseline's 58.2\% to 97.1\%, and every refined
+run exceeds every baseline run: complete rank separation, exact two-sided
+$p = 2/\binom{30}{15} \approx 1.29\times10^{-8}$, the smallest value a
+design with $n{=}15$ per arm can produce. Acceptance is a rate, so this
+comparison holds although the arms execute different numbers of inputs.
 
 \begin{table*}[t]
 \centering
-\caption{cJSON: baseline vs.\ LLM-refined, fifteen seeded runs per arm (mean
-over runs). The exact two-sided permutation $p \approx 1.29\times10^{-8}$
-applies only to the scale-free acceptance-rate comparison; fingerprint and
-rejection signature totals are descriptive because budgets differ.}
+\caption{cJSON, fifteen seeded runs per arm (mean over runs with data).
+Shapes are distinct structural fingerprints per 500-input iteration, so
+arms with different budgets compare directly. Exact two-sided Mann--Whitney
+U on per-run acceptance: refined vs.\ static $p \approx 1.29\times10^{-8}$
+($\delta = +1.00$); no feedback vs.\ static $p \approx 1.8\times10^{-5}$
+($\delta = +0.86$); refined vs.\ no feedback $p \approx 0.95$
+($\delta = -0.02$).}
 \label{tab:cjson-comparison}
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrrr}
 \toprule
-Metric & Baseline & Refined & Change \\
+Arm & Acceptance (sd) & Rejected inputs & Shapes per 500 & Inputs per run & Failed proposals \\
 \midrule
-Acceptance rate & 58.21\% & 97.07\% & $+$38.86 pp \\
-Structural fingerprints (sum/run; descriptive) & 274.5 & 598.2 & --- \\
-Rejection signatures (sum/run; descriptive) & 87.8 & 24.1 & --- \\
-Crashes / timeouts / signals & 0 & 0 & --- \\
+Static baseline & 58.21\% (1.30) & 41.79\% & 274.5 & 500 & -- \\
+Valid half of the baseline only & 100.00\% (0.00) & 0.00\% & 251.0 & 500 & -- \\
+LLM, with feedback (refined) & 97.07\% (2.93) & 1.95\% & 195.1 & 1{,}533 & 29 of 75 \\
+LLM, no feedback (14 of 15 runs with data) & 92.95\% (15.53) & 3.23\% & 174.0 & 821 & 52 of 75 \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{figures/acceptance_comparison.pdf}
-\caption{Per-run acceptance rate, baseline vs.\ refined, cJSON (fifteen
-seeded runs per arm). Every refined run exceeds every baseline run.}
-\label{fig:acceptance-comparison}
+\input{figures/acceptance_strip}
+\caption{Per-run acceptance rate of every arm (dots: runs; bar and number:
+mean). The LLM's generators reach the same acceptance with or without
+feedback; the static baseline's valid half alone accepts every input.}
+\label{fig:acceptance-strip}
 \end{figure}
 
-\textbf{Unequal budgets.} Baseline runs execute 500 inputs on average;
-refined runs execute 1{,}533 on average, because each refined run has up
-to five iterations of 500 inputs and an iteration whose LLM proposal is
-rejected executes none (29 of the 75 refined iterations). Every
-count-based quantity (accepted, rejected, fingerprints, signatures as raw
-totals rather than rates) therefore scales with a budget that differs
-between arms and is not directly comparable; acceptance rate is scale-free
-and unaffected by this. We report the budget-sensitive metrics above as
-\emph{sums over a run's iterations} specifically so the comparison is
-transparent about this rather than implying parity.
+\textbf{The gain does not come from the feedback.} The no-feedback arm
+receives, in every iteration, exactly the prompt the refined arm received
+before any campaign had run. Its generators are statistically
+indistinguishable from the refined arm's ($p \approx 0.95$, Cliff's
+$\delta = -0.02$), which meets the pre-registered rule for ``no detectable
+effect'' ($p \geq 0.05$ and $|\delta| < 0.33$). Its lower mean comes from
+one run whose only working generator emitted 193 strings that could not be
+encoded (lone surrogates), which count as not accepted; one run produced no
+working generator at all. The acceptance gain over the static baseline is
+therefore the model's: given the grammar, gpt-4.1-mini writes a generator
+whose output is almost always valid, in the first iteration as in the last.
+Consistent with this, the refined arm's first-iteration generators, written
+before any feedback existed, already reach 96.6--100\% acceptance where they
+ran.
 
-\textbf{No crashes in either arm.} Zero sanitizer crashes, timeouts, or
-fatal signals occurred in either arm across all thirty runs. The effect
-measured here is therefore on generator quality -- validity and structural
-diversity -- not on vulnerability discovery in cJSON; we do not claim or
-imply that refinement found, or was likely to find, a memory-safety bug in
-this target.
+\textbf{What the feedback does change.} In an exploratory comparison, not
+part of the pre-registered analysis, the refined arm lost fewer proposals
+to validation failures (29 against 52 of 75; per run, exact two-sided
+$p \approx 0.0005$). Its prompts carry both the campaign counts and the
+previous proposal's error text, so this design cannot separate the two, but
+the failures are code errors -- mostly calls the Hypothesis API rejects --
+and the error text is the plausible reason the next proposal avoids them.
+The feedback thus helps the loop keep a working generator; it does not
+change what working generators produce.
+
+\textbf{What the baseline comparison measures.} Half of the static
+baseline's inputs carry a deliberate trailing suffix, and cJSON's
+full-buffer entry point accepts only the NUL suffix, which bounds the
+baseline near 60\%. Its valid half alone accepts every input, and it
+produces more distinct shapes per 500 inputs (251.0) than the generators of
+either LLM arm (195.1 and 174.0). The LLM's generators are thus valid but not
+more varied, and they rarely exercise the rejection path: six of the
+fifteen refined runs and eight of the fourteen no-feedback runs produced no
+rejected input at all.
+
+\textbf{No crashes in any arm.} No sanitizer crash, timeout, or fatal
+signal occurred in any of the sixty runs. The effects measured here concern
+generator validity, not vulnerability discovery; we do not claim that
+refinement found, or was likely to find, a memory-safety bug in cJSON.
 
 \subsection{RQ2: replication on parson}
 \label{sec:evaluation-parson}
@@ -95,14 +113,16 @@ $p \approx 0.024$, Cliff's $\delta = -0.48$). The baseline has tied values,
 which the exact test assumes away; a tie-corrected test ($p \approx 0.025$)
 and a permutation test on the difference in means ($p \approx 0.005$) agree.
 No crash, timeout, or signal occurred in 25{,}500 sanitizer-instrumented
-executions, and 39 of the 75 refined iterations lost their proposal to
-sandbox validation (29 of 75 on cJSON).
+executions, and in 39 of the 75 refined iterations the proposal failed
+validation (29 of 75 on cJSON). Few of these failures are the sandbox's import
+rule (4 of 39 here, 5 of 29 on cJSON); the rest are calls the Hypothesis API
+does not accept or errors raised while drawing an example.
 
 \begin{table}[t]
 \centering
 \footnotesize
 \caption{parson: baseline vs.\ LLM-refined, fifteen seeded runs per arm,
-identical design to Table~\ref{tab:cjson-comparison}. $p$: exact two-sided
+the same design as RQ1's refined and static arms. $p$: exact two-sided
 Mann--Whitney U on per-run acceptance rate.}
 \label{tab:parson}
 \begin{tabular}{@{}lrr@{}}
@@ -119,7 +139,7 @@ Distinct rejection signatures & 1 & 1 \\
 \end{tabular}
 \end{table}
 
-\textbf{Why refinement lowers acceptance on parson.} Every input parson
+\textbf{Why the LLM's generators lower acceptance on parson.} Every input parson
 rejected in either arm is explained by a construct confirmed with a minimal
 document against the harness. The baseline alternates a grammar-valid
 document with the same document plus one trailing suffix (a comma, a bracket,
@@ -129,14 +149,22 @@ bytes after a complete value, so none is rejected, and its only baseline
 rejections (329 of 7{,}500) are objects whose key contains an escaped NUL,
 which parson's source states it does not support. The baseline therefore
 starts at 95.6\% with almost nothing for refinement to fix. The refined
-generators are more varied and produce grammar-valid constructs that parson
-refuses. Of the 1{,}063 inputs it rejected, 474 contain a duplicate key, 427
+generators produce grammar-valid constructs that parson refuses. Of the 1{,}063 inputs it rejected, 474 contain a duplicate key, 427
 an unpaired surrogate escape, 138 a number that overflows a double, 136 a
 zero followed directly by an exponent (\texttt{0e5}), and 10 a NUL in a key
-(an input can have several); only 6 are not valid under the grammar. The
-last two numeric cases differ in status: RFC~8259 permits limits on number
-range, but \texttt{0e5} is valid JSON, and support for it was proposed to
-parson and not merged~\cite{parsonpr188}. A further 392 inputs (2.2\%)
+(an input can have several); only 6 are not valid under the grammar.
+JSONTestSuite~\cite{seriot2016jsontestsuite} classifies these constructs.
+Duplicate keys, \texttt{0e5}, and an escaped NUL in a key are documents a
+parser must accept; unpaired surrogates and out-of-range numbers are left to
+the implementation, as RFC~8259~\cite{rfc8259} permits. 614 of the 1{,}063
+rejected inputs, and all 329 baseline rejections, contain at least one
+must-accept construct; 443 contain only implementation-defined ones. These
+rejections are deliberate or known (its source documents the NUL-key
+limitation, and support for \texttt{0e5} was proposed and not
+merged~\cite{parsonpr188}), so we report them as deviations a conformance
+suite flags, not as new findings. The refined generators reached exactly the
+inputs on which parson departs from the standard, and the acceptance proxy
+scored that as a loss. A further 392 inputs (2.2\%)
 failed to encode and count as not accepted, as in RQ1. Finally, parson's
 parser returns no error detail, so all 1{,}392 rejections in both arms share
 one rejection signature: the proxy tells the proposer how many inputs failed,
@@ -193,51 +221,39 @@ internal free paths but not parson's public mutation API
 \texttt{\_replace\_*} family), is a bounded search, and we do not claim more
 than that bound supports.
 
-\subsection{RQ3: which feedback signal drives the improvement}
+\subsection{RQ3: does it matter which counts the LLM sees?}
 \label{sec:evaluation-ablation}
 
-Table~\ref{tab:ablation} reports the feedback-signal ablation described in
-Section~\ref{sec:methodology}: the same refined-arm recipe run under each of
-the three feedback modes, five seeded trials (seeds 0--4) per mode. In one
-trial per mode, all five refinement iterations produced an LLM proposal that
-failed sandbox validation (Section~\ref{sec:methodology}), leaving that
-trial with no executed inputs; these three trials are excluded, leaving four
-usable trials per mode -- the same proposal-rejection behavior visible
-throughout RQ1's refined arm, just concentrated into a full trial in these
-smaller-sample runs rather than spread across otherwise-successful trials.
+Table~\ref{tab:ablation} reports the feedback ablation of
+Section~\ref{sec:methodology}: the refined arm's recipe under each of the
+three feedback modes, five seeded trials (seeds 0--4) per mode. In one trial
+per mode, all five proposals failed validation, leaving no executed inputs;
+these three trials are excluded, leaving four usable trials per mode.
 
-\begin{table*}[t]
+\begin{table}[t]
 \centering
+\footnotesize
 \caption{cJSON refined arm under three feedback modes, four usable seeded
-trials per mode (one trial per mode excluded; see
-Section~\ref{sec:evaluation-ablation}). Descriptive only: with $n{=}4$ per
-condition and no separation between conditions, no significance test is
-reported or implied.}
+trials per mode (mean over trials; shapes and rejection signatures per
+500-input iteration). Descriptive only: no test is reported at $n{=}4$.}
 \label{tab:ablation}
-\begin{tabular}{lrrr}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrr@{}}
 \toprule
-Feedback mode & Acceptance rate & Fingerprints (sum/run) & Rej.\ signatures (sum/run) \\
+Mode & Acceptance & Shapes & Rej.\ signatures \\
 \midrule
-\texttt{counts} & 92.58\% & 505.5 & 6.5 \\
-\texttt{counts+rejections} & 96.42\% & 457.3 & 26.8 \\
-\texttt{full} & 95.53\% & 503.5 & 34.8 \\
+\texttt{counts} & 92.58\% & 202.2 & 2.6 \\
+\texttt{counts+rejections} & 96.42\% & 203.2 & 11.9 \\
+\texttt{full} & 95.53\% & 183.1 & 12.6 \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
-All three modes raise acceptance rate to a broadly similar, near-ceiling
-level -- exposing only acceptance/rejection counts is already close to
-sufficient for that specific objective, and the per-trial acceptance rates
-across modes overlap (Table~\ref{tab:ablation}), so we do not claim any mode
-is statistically distinguishable from another on this metric at $n{=}4$.
-The one pattern worth reporting descriptively is rejection-signature
-diversity, which increases monotonically with how much of the signal the
-proposer sees: \texttt{counts} alone, with no visibility into which
-rejection shapes are already covered, produces under a fifth of the
-distinct rejection signatures that \texttt{full} feedback does, consistent
-with -- though not proof of -- the concern raised in
-Section~\ref{sec:discussion} that a proposer optimizing acceptance rate
-without visibility into rejection diversity has less reason to keep
-producing malformed, boundary-probing input. At four trials per condition,
-this is a suggestive, small-sample result, not a tested effect, and we
-report it as exactly that.
+All three modes reach a similar, near-ceiling acceptance, and their per-trial
+rates overlap, which is what the no-feedback control predicts: if the counts
+do not change acceptance at all, which subset of them is shown should not
+either. Distinct rejection signatures per iteration are lower with
+\texttt{counts} alone (2.6 against 11.9 and 12.6), but this rests on a single
+trial, the only \texttt{counts} trial with any rejected input. At four
+trials per mode we report it as a descriptive observation, not an effect.
+

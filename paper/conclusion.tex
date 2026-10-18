@@ -1,43 +1,33 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We asked whether an LLM, given only a formal grammar and the feedback a
-black-box harness can actually produce -- acceptance rate, structural
-diversity, and rejection signatures, with no coverage instrumentation at
-all -- can iteratively refine a grammar-based fuzzing generator. Across
-fifteen seeded runs against a pinned cJSON build, it reliably can: mean
-acceptance rate rose from 58.2\% to 97.1\% relative to a static baseline,
-with complete rank separation between arms in this scale-free outcome.
-Structural fingerprints and rejection signatures were useful within-campaign
-feedback signals, but their aggregate counts are not treated as cross-arm
-effects because the arms used different budgets. A feedback-signal ablation
-found that acceptance-rate gains hold up under a sparser signal than the
-full one, but that the full signal preserves more rejection-signature
-diversity -- a small-sample, descriptive finding that motivates, without yet
-proving, an explicit reject-rate objective as future work. A pre-registered
-replication on a second parser, parson, reversed the effect: refinement
-lowered acceptance from 95.6\% to 92.4\%, because parson accepts trailing
-bytes, rejects several grammar-valid constructs that the refined generators
-produce, and reports no error detail. The pipeline ran unmodified on both
-targets; the value of its proxy signal depends on the target. No crash was
-found on either parser.
+We asked what an LLM contributes when it writes and rewrites a grammar-based
+generator from a formal grammar and black-box feedback alone, with no
+coverage instrumentation. On cJSON, its generators raised acceptance from a
+static baseline's 58.2\% to 97.1\% over fifteen seeded runs. A pre-registered
+control showed where that gain comes from: with every campaign result
+withheld, the LLM's generators were statistically indistinguishable
+($p \approx 0.95$, $\delta = -0.02$). The model writes a valid generator from
+the grammar; the counts the loop feeds back do not make it better, and the
+one thing the feedback measurably helps with is avoiding proposals that fail
+to run. A pre-registered replication on parson reversed the acceptance
+effect, and every rejected input was explained: most contain constructs a
+conformance suite says a parser must accept, so the generators reached
+exactly where parson departs from the standard, and the acceptance score
+counted it as failure. No crash was found on either parser.
 
-The broader point this project argues for is methodological rather than a
-single number: a coverage-free proxy signal, cheap enough to compute from a
-black-box harness's own accept/reject decision, is sufficient to steer
-LLM-guided refinement of a grammar-based generator on a target that is
-strict and reports why it rejects input, which matters
-specifically for the targets coverage-guided fuzzing cannot reach -- pinned
-vendored dependencies, closed or license-restricted binaries, and embedded
-or cross-compiled parsers. We also found that reconciling a formal grammar
-against two real, independently implemented parsers is itself informative:
-the same grammar under-specifies a directly opposite validity decision
-(duplicate object keys accepted by one implementation, rejected by the
-other) on two targets, which is exactly the kind of target-specific
-knowledge a purely formal specification cannot supply and that fuzzing
-against the real implementation surfaces for free.
+The lesson for coverage-free fuzzing, which matters for targets
+coverage-guided fuzzers cannot instrument -- pinned vendored dependencies,
+closed binaries, embedded or cross-compiled parsers -- is that cheap
+black-box counts are not enough to steer an LLM. Useful feedback has to
+carry content: which inputs failed and why, and where implementations of
+the same grammar differ. The same grammar admits directly opposite validity
+decisions on two parsers (duplicate keys accepted by one, rejected by the
+other), which is exactly the target-specific knowledge a formal
+specification cannot supply and a refinement loop would need.
 
-We release the full pipeline, both harnesses, every campaign artifact, and
-the reproducibility tooling described in Section~\ref{sec:methodology}, so
-that the comparisons in Section~\ref{sec:evaluation} on both parsers can be checked, extended, or falsified directly rather than
-taken on faith.\footnote{\url{\artifacturl}}
+We release the full pipeline, both harnesses, every campaign artifact, the
+control arm's protocol, and the reproducibility tooling described in
+Section~\ref{sec:methodology}, so that every comparison in
+Section~\ref{sec:evaluation} can be checked, extended, or falsified
+directly.\footnote{\url{\artifacturl}}

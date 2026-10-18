@@ -1,0 +1,1 @@
+ProposalError: generated_json is not a Hypothesis strategy: Expected a SearchStrategy but got elements=<function accept.<locals>.pair at 0x117ef4040> (type=function)

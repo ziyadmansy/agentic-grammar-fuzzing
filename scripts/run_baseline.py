@@ -38,6 +38,11 @@ def main() -> None:
     )
     parser.add_argument("--runs", type=int, default=1, help="repeated runs; requires --artifact-dir")
     parser.add_argument("--overwrite", action="store_true", help="allow writing into a non-empty run directory")
+    parser.add_argument(
+        "--valid-only",
+        action="store_true",
+        help="draw every input from baseline_json (no near_valid_json half); docs/no-feedback-control.md",
+    )
     args = parser.parse_args()
 
     if args.runs < 1:
@@ -47,7 +52,7 @@ def main() -> None:
 
     def input_stream():
         for index in range(args.examples):
-            strategy = baseline_json() if index % 2 == 0 else near_valid_json()
+            strategy = baseline_json() if args.valid_only or index % 2 == 0 else near_valid_json()
             yield strategy.example()
 
     if args.artifact_dir is None:
